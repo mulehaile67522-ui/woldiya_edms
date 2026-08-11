@@ -1,0 +1,57 @@
+{% extends "documents/base.html" %}
+{% block title %}ምድቦች — ወልድያ EDMS{% endblock %}
+{% block page_title %}ምድቦች{% endblock %}
+{% block page_subtitle %}{{ cats.count }} ምድብ{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-end mb-3">
+  <a href="{% url 'category_create' %}" class="btn btn-gold btn-sm">
+    <i class="bi bi-plus-lg me-1"></i>አዲስ ምድብ
+  </a>
+</div>
+
+<div class="page-card">
+  <div class="table-responsive">
+    <table class="edms-table">
+      <thead>
+        <tr>
+          <th>ስም</th>
+          <th>የአማርኛ ስም</th>
+          <th>መግለጫ</th>
+          <th>ደብዳቤ ብዛት</th>
+          <th>እርምጃ</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cat in cats %}
+        <tr>
+          <td class="fw-medium">{{ cat.name }}</td>
+          <td>{{ cat.amharic_name|default:"—" }}</td>
+          <td class="text-muted small">{{ cat.description|truncatechars:60|default:"—" }}</td>
+          <td><span class="eb eb-INCOMING">{{ cat.cnt }}</span></td>
+          <td>
+            <div class="d-flex gap-1">
+              <a href="{% url 'category_update' cat.pk %}" class="btn btn-sm btn-outline-secondary py-0 px-2">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <a href="{% url 'category_delete' cat.pk %}" class="btn btn-sm btn-outline-danger py-0 px-2">
+                <i class="bi bi-trash"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-center text-muted py-4">
+            <i class="bi bi-tags fs-2 d-block mb-2 opacity-25"></i>
+            ምንም ምድብ አልተፈጠረም
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

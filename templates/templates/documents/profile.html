@@ -1,0 +1,186 @@
+{% extends "documents/base.html" %}
+{% block title %}መገለጫ — ወልድያ EDMS{% endblock %}
+{% block page_title %}የእኔ መገለጫ{% endblock %}
+{% block page_subtitle %}{{ request.user.get_full_name|default:request.user.username }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .avatar {
+    width:80px; height:80px; border-radius:50%;
+    background:linear-gradient(135deg,var(--brand),#2980b9);
+    display:flex; align-items:center; justify-content:center;
+    font-size:2rem; color:#fff; font-weight:700;
+    flex-shrink:0; border:4px solid var(--brand-gold);
+  }
+  .role-badge {
+    display:inline-block; padding:4px 14px; border-radius:20px;
+    font-size:.8rem; font-weight:700; color:#fff;
+  }
+  .role-ADMIN     { background:#c62828; }
+  .role-REGISTRAR { background:#1565c0; }
+  .role-VIEWER    { background:#546e7a; }
+  .info-row { display:flex; gap:8px; align-items:center; padding:10px 0; border-bottom:1px solid #f1f5f9; }
+  .info-row:last-child { border-bottom:none; }
+  .info-row .label { font-size:.8rem; color:#94a3b8; min-width:120px; font-weight:600; }
+  .info-row .value { font-size:.9rem; font-weight:500; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  <!-- Left: Profile Info -->
+  <div class="col-lg-4">
+
+    <!-- Avatar + name card -->
+    <div class="page-card p-4 text-center mb-4">
+      <div class="avatar mx-auto mb-3">
+        {{ request.user.first_name|first|upper|default:request.user.username|first|upper }}
+      </div>
+      <h5 class="fw-bold mb-1">{{ request.user.get_full_name|default:request.user.username }}</h5>
+      <div class="text-muted small mb-2">@{{ request.user.username }}</div>
+      <span class="role-badge role-{{ profile.role }}">
+        {{ profile.get_role_display }}
+      </span>
+      {% if profile.department %}
+      <div class="mt-2 text-muted small">
+        <i class="bi bi-building me-1"></i>{{ profile.department }}
+      </div>
+      {% endif %}
+      {% if profile.phone %}
+      <div class="text-muted small">
+        <i class="bi bi-telephone me-1"></i>{{ profile.phone }}
+      </div>
+      {% endif %}
+      <div class="mt-3 pt-3 border-top">
+        <div class="d-flex justify-content-center gap-4">
+          <div class="text-center">
+            <div class="fw-bold text-primary" style="font-size:1.4rem;">{{ my_total }}</div>
+            <div class="text-muted" style="font-size:.72rem;">የተመዘገቡ</div>
+          </div>
+          <div class="text-center">
+            <div class="fw-bold text-warning" style="font-size:1.4rem;">{{ my_assigned.count }}</div>
+            <div class="text-muted" style="font-size:.72rem;">የተመደቡ</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Account info -->
+    <div class="page-card p-4">
+      <h6 class="fw-bold mb-3" style="color:var(--brand);">
+        <i class="bi bi-info-circle me-2"></i>የመለያ መረጃ
+      </h6>
+      <div class="info-row">
+        <span class="label">Username</span>
+        <span class="value">{{ request.user.username }}</span>
+      </div>
+      <div class="info-row">
+        <span class="label">ኢሜይል</span>
+        <span class="value">{{ request.user.email|default:"—" }}</span>
+      </div>
+      <div class="info-row">
+        <span class="label">ሚና</span>
+        <span class="value"><span class="role-badge role-{{ profile.role }}">{{ profile.get_role_display }}</span></span>
+      </div>
+      <div class="info-row">
+        <span class="label">ተቀላቀለ</span>
+        <span class="value">{{ request.user.date_joined|date:"d/m/Y" }}</span>
+      </div>
+      <div class="info-row">
+        <span class="label">መጨረሻ ግቤ</span>
+        <span class="value">{{ request.user.last_login|date:"d/m/Y H:i"|default:"—" }}</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Right: Edit form + recent docs -->
+  <div class="col-lg-8">
+
+    <!-- Edit form -->
+    <div class="page-card p-4 mb-4">
+      <h6 class="fw-bold mb-4" style="color:var(--brand);">
+        <i class="bi bi-pencil-square me-2"></i>መረጃ አርትዕ
+      </h6>
+      <form method="post">
+        {% csrf_token %}
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <label class="form-label">የመጀመሪያ ስም</label>
+            <input type="text" name="first_name" class="form-control"
+                   value="{{ request.user.first_name }}" placeholder="First name">
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">የአባት ስም</label>
+            <input type="text" name="last_name" class="form-control"
+                   value="{{ request.user.last_name }}" placeholder="Last name">
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">ኢሜይል</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+              <input type="email" name="email" class="form-control"
+                     value="{{ request.user.email }}" placeholder="email@example.com">
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">ስልክ ቁጥር</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-telephone"></i></span>
+              <input type="text" name="phone" class="form-control"
+                     value="{{ profile.phone }}" placeholder="+251...">
+            </div>
+          </div>
+          <div class="col-12">
+            <label class="form-label">ክፍል / ቢሮ</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-building"></i></span>
+              <input type="text" name="department" class="form-control"
+                     value="{{ profile.department }}" placeholder="ለምሳሌ: ፋይናንስ ቢሮ">
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 d-flex gap-2">
+          <button type="submit" class="btn btn-brand px-4">
+            <i class="bi bi-check-lg me-1"></i>ዘምን
+          </button>
+          <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+            ሰርዝ
+          </a>
+        </div>
+      </form>
+    </div>
+
+    <!-- Recent docs registered by me -->
+    <div class="page-card">
+      <div class="card-head">
+        <h6><i class="bi bi-clock-history me-2"></i>የቅርብ ጊዜ ደብዳቤዎቼ</h6>
+        <a href="{% url 'my_documents' %}" class="btn btn-sm btn-outline-primary">ሁሉም <i class="bi bi-arrow-right ms-1"></i></a>
+      </div>
+      <div class="table-responsive">
+        <table class="edms-table">
+          <thead>
+            <tr><th>ቁጥር</th><th>ርዕስ</th><th>ሁኔታ</th><th>ቀን</th></tr>
+          </thead>
+          <tbody>
+            {% for doc in my_docs %}
+            <tr>
+              <td><a href="{% url 'document_detail' doc.pk %}" class="text-decoration-none">
+                <code class="text-primary fw-bold">{{ doc.reference_number }}</code>
+              </a></td>
+              <td style="max-width:200px;" class="text-truncate">{{ doc.title }}</td>
+              <td><span class="eb eb-{{ doc.status }}">{{ doc.get_status_display }}</span></td>
+              <td class="text-muted" style="font-size:.8rem;">{{ doc.created_at|date:"d/m/Y" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-center text-muted py-3">ምንም ደብዳቤ አልተመዘገበም</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

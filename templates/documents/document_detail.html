@@ -1,0 +1,328 @@
+{% extends "documents/base.html" %}
+{% load static %}
+{% block title %}{{ doc.reference_number }} — ወልድያ EDMS{% endblock %}
+{% block page_title %}{{ doc.title|truncatechars:55 }}{% endblock %}
+{% block page_subtitle %}ቁጥር: {{ doc.reference_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .pdf-toolbar {
+    background:#1e293b; color:#e2e8f0;
+    border-radius:10px 10px 0 0;
+    padding:8px 14px;
+    display:flex; align-items:center; gap:10px;
+    flex-wrap:wrap;
+  }
+  .pdf-toolbar .btn { font-size:.78rem; padding:3px 10px; border-radius:6px; }
+  .pdf-container { border:1px solid #e2e8f0; border-top:none; border-radius:0 0 10px 10px; overflow:hidden; }
+  .qr-box { text-align:center; }
+  .qr-box img { max-width:180px; border-radius:10px; border:2px solid #e2e8f0; padding:6px; background:#fff; }
+  .activity-dot { width:9px; height:9px; background:var(--brand); border-radius:50%; margin-top:5px; flex-shrink:0; }
+  .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media(max-width:576px){ .info-grid { grid-template-columns:1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if is_overdue %}
+<div class="alert alert-danger d-flex gap-2 align-items-center mb-4">
+  <i class="bi bi-alarm-fill fs-5 flex-shrink-0"></i>
+  <div>የዚህ ደብዳቤ የመጨረሻ ቀን <strong>{{ doc.due_date }}</strong> ነበር — ጊዜው አልፏል!</div>
+</div>
+{% endif %}
+
+<!-- Action buttons -->
+<div class="d-flex flex-wrap gap-2 mb-4 no-print">
+  <a href="{% url 'document_list' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>ተመለስ
+  </a>
+  {% if user_can_edit %}
+  <a href="{% url 'document_update' doc.pk %}" class="btn btn-sm btn-outline-primary">
+    <i class="bi bi-pencil me-1"></i>አርትዕ
+  </a>
+  {% endif %}
+  {% if doc.file %}
+  <a href="{% url 'document_download' doc.pk %}" class="btn btn-sm btn-outline-success">
+    <i class="bi bi-download me-1"></i>አውርድ
+    {% if doc.download_count %}<span class="badge bg-secondary ms-1">{{ doc.download_count }}</span>{% endif %}
+  </a>
+  {% endif %}
+  <a href="{% url 'document_print' doc.pk %}" target="_blank" class="btn btn-sm btn-outline-dark">
+    <i class="bi bi-file-earmark-text me-1"></i>Cover Sheet
+  </a>
+  <button onclick="window.print()" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-printer me-1"></i>አትም
+  </button>
+  {% if user_can_edit %}
+  <a href="{% url 'document_delete' doc.pk %}" class="btn btn-sm btn-outline-danger ms-auto">
+    <i class="bi bi-trash me-1"></i>ሰርዝ
+  </a>
+  {% endif %}
+</div>
+
+<div class="row g-4">
+
+  <!-- ── Left: Details + File preview ── -->
+  <div class="col-lg-8">
+
+    <!-- Badges + main info -->
+    <div class="page-card p-4 mb-4">
+      <div class="d-flex flex-wrap gap-2 mb-4">
+        <span class="eb eb-{{ doc.doc_type }} px-3 py-1" style="font-size:.8rem;">{{ doc.get_doc_type_display }}</span>
+        <span class="eb eb-{{ doc.status }} px-3 py-1" style="font-size:.8rem;">{{ doc.get_status_display }}</span>
+        <span class="eb eb-{{ doc.priority }} px-3 py-1" style="font-size:.8rem;">{{ doc.get_priority_display }}</span>
+        {% if doc.category %}<span class="badge bg-light text-dark border px-3 py-1" style="font-size:.8rem;">{{ doc.category }}</span>{% endif %}
+      </div>
+
+      <div class="info-grid mb-4">
+        <div>
+          <div class="text-muted small mb-1">የደብዳቤ ቁጥር</div>
+          <code class="text-primary fw-bold" style="font-size:1rem;">{{ doc.reference_number }}</code>
+        </div>
+        <div>
+          <div class="text-muted small mb-1">ርዕስ</div>
+          <div class="fw-semibold" style="font-size:1rem;">{{ doc.title }}</div>
+        </div>
+        <div>
+          <div class="text-muted small mb-1">ላኪ</div>
+          <div class="fw-medium"><i class="bi bi-person-circle me-1 text-muted"></i>{{ doc.sender }}</div>
+        </div>
+        <div>
+          <div class="text-muted small mb-1">ተቀባይ</div>
+          <div class="fw-medium"><i class="bi bi-person-check me-1 text-muted"></i>{{ doc.receiver }}</div>
+        </div>
+        {% if doc.date_received %}
+        <div>
+          <div class="text-muted small mb-1">የደረሰበት ቀን</div>
+          <div>{{ doc.date_received }}</div>
+        </div>
+        {% endif %}
+        {% if doc.due_date %}
+        <div>
+          <div class="text-muted small mb-1">የመጨረሻ ቀን</div>
+          <div class="{% if is_overdue %}text-danger fw-bold{% endif %}">
+            {{ doc.due_date }}
+            {% if is_overdue %}<i class="bi bi-exclamation-circle ms-1"></i>{% endif %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if doc.description %}
+      <div class="mb-3">
+        <div class="text-muted small mb-1">መግለጫ / ማስታወሻ</div>
+        <div class="p-3 bg-light rounded" style="white-space:pre-wrap;font-size:.88rem;">{{ doc.description }}</div>
+      </div>
+      {% endif %}
+
+      <div class="row g-2 pt-3 border-top" style="font-size:.8rem;">
+        <div class="col-6 col-md-4">
+          <span class="text-muted">የተመዘገበ:</span> {{ doc.created_at|date:"d/m/Y H:i" }}
+        </div>
+        <div class="col-6 col-md-4">
+          <span class="text-muted">ዘምኗል:</span> {{ doc.updated_at|date:"d/m/Y H:i" }}
+        </div>
+        {% if doc.created_by %}
+        <div class="col-6 col-md-4">
+          <span class="text-muted">የተመዘገበው:</span> {{ doc.created_by.get_full_name|default:doc.created_by.username }}
+        </div>
+        {% endif %}
+        {% if doc.assigned_to %}
+        <div class="col-6 col-md-4">
+          <span class="text-muted">የተመደበለት:</span>
+          <i class="bi bi-person-badge me-1"></i>{{ doc.assigned_to.get_full_name|default:doc.assigned_to.username }}
+        </div>
+        {% endif %}
+        <div class="col-6 col-md-4">
+          <i class="bi bi-eye text-muted me-1"></i>{{ doc.view_count }} ጊዜ ታይቷል
+        </div>
+        <div class="col-6 col-md-4">
+          <i class="bi bi-download text-muted me-1"></i>{{ doc.download_count }} ጊዜ ወርዷል
+        </div>
+      </div>
+    </div>
+
+    <!-- File preview -->
+    {% if doc.file %}
+    <div class="page-card mb-4">
+      {% if doc.is_pdf %}
+      <!-- PDF inline viewer with toolbar -->
+      <div class="pdf-toolbar no-print">
+        <i class="bi bi-file-earmark-pdf text-danger"></i>
+        <span style="font-size:.82rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          {{ doc.file.name|slice:"10:" }}
+        </span>
+        <a href="{{ doc.file.url }}" target="_blank" class="btn btn-outline-light btn-sm">
+          <i class="bi bi-box-arrow-up-right me-1"></i>አዲስ ትር
+        </a>
+        <a href="{% url 'document_download' doc.pk %}" class="btn btn-sm" style="background:var(--brand-gold);color:#fff;">
+          <i class="bi bi-download me-1"></i>አውርድ
+        </a>
+        <button onclick="toggleFullscreen()" class="btn btn-outline-light btn-sm" title="Fullscreen">
+          <i class="bi bi-fullscreen" id="fsIcon"></i>
+        </button>
+      </div>
+      <div class="pdf-container" id="pdfContainer">
+        <iframe id="pdfFrame" src="{{ doc.file.url }}#toolbar=0&navpanes=0"
+                style="width:100%;height:600px;border:none;display:block;"></iframe>
+      </div>
+      {% elif doc.is_image %}
+      <div class="p-3">
+        <img src="{{ doc.file.url }}" alt="{{ doc.title }}" id="previewImg"
+             class="img-fluid rounded w-100" style="max-height:520px;object-fit:contain;cursor:zoom-in;border:1px solid #e2e8f0;"
+             onclick="openLightbox(this.src)"/>
+        <div class="mt-2 d-flex gap-2 no-print">
+          <a href="{{ doc.file.url }}" download class="btn btn-sm btn-primary"><i class="bi bi-download me-1"></i>አውርድ</a>
+          <a href="{{ doc.file.url }}" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-box-arrow-up-right me-1"></i>አዲስ ትር</a>
+        </div>
+      </div>
+      {% else %}
+      <div class="text-center py-5 text-muted">
+        <i class="bi bi-file-earmark-arrow-down fs-1 d-block mb-2"></i>
+        <p>ቅድሚያ ዕይታ አይቻልም — ፋይሉን ያውርዱ።</p>
+        <a href="{% url 'document_download' doc.pk %}" class="btn btn-primary btn-sm">
+          <i class="bi bi-download me-1"></i>አውርድ
+        </a>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+  </div>
+
+  <!-- ── Right: Status + QR + Activity ── -->
+  <div class="col-lg-4">
+
+    <!-- Quick status change -->
+    {% if user_can_edit %}
+    <div class="page-card p-4 mb-4 no-print">
+      <h6 class="fw-bold mb-3" style="color:var(--brand);">
+        <i class="bi bi-arrow-repeat me-2"></i>ሁኔታ ቀይር
+      </h6>
+      <form method="post" action="{% url 'update_status' doc.pk %}" id="statusForm">
+        {% csrf_token %}
+        <select name="status" class="form-select mb-3">
+          {% for val, label in doc.STATUS_CHOICES %}
+          <option value="{{ val }}" {% if val == doc.status %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-brand w-100">
+          <i class="bi bi-check-lg me-1"></i>ሁኔታ ዘምን
+        </button>
+      </form>
+    </div>
+    {% endif %}
+
+    <!-- QR Code panel -->
+    <div class="page-card p-4 mb-4 qr-box">
+      <h6 class="fw-bold mb-3" style="color:var(--brand);">
+        <i class="bi bi-qr-code me-2"></i>QR Code
+      </h6>
+      <img src="{% url 'document_qr' doc.pk %}" alt="QR Code for {{ doc.reference_number }}"
+           id="qrImg" class="mb-3"/>
+      <div class="text-muted" style="font-size:.75rem; margin-bottom:12px;">
+        ይህን QR code ስካን ያድርጉ ወደ ደብዳቤው ለደረስ
+      </div>
+      <div class="d-flex gap-2 justify-content-center no-print">
+        <a href="{% url 'document_qr' doc.pk %}" download="qr_{{ doc.reference_number }}.png"
+           class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-download me-1"></i>አውርድ
+        </a>
+        <a href="{% url 'document_print' doc.pk %}" target="_blank"
+           class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-printer me-1"></i>አትም
+        </a>
+      </div>
+    </div>
+
+    <!-- Activity log -->
+    <div class="page-card p-4">
+      <h6 class="fw-bold mb-3" style="color:var(--brand);">
+        <i class="bi bi-clock-history me-2"></i>የእንቅስቃሴ ታሪክ
+      </h6>
+      <div style="max-height:400px;overflow-y:auto;">
+        {% for act in activities %}
+        <div class="d-flex gap-3 mb-3">
+          <div class="activity-dot"></div>
+          <div>
+            <div class="fw-medium" style="font-size:.83rem;">{{ act.action }}</div>
+            {% if act.detail %}
+            <div class="text-muted" style="font-size:.77rem;">{{ act.detail }}</div>
+            {% endif %}
+            <div class="text-muted" style="font-size:.73rem;">
+              {{ act.timestamp|date:"d/m/Y H:i" }}
+              {% if act.user %} — <strong>{{ act.user.get_full_name|default:act.user.username }}</strong>{% endif %}
+            </div>
+          </div>
+        </div>
+        {% if not forloop.last %}<hr style="margin:.3rem 0 .3rem 22px;border-color:#f1f5f9;">{% endif %}
+        {% empty %}
+        <p class="text-muted small text-center">ምንም ታሪክ የለም።</p>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Lightbox modal -->
+<div class="modal fade" id="lightboxModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content bg-dark">
+      <div class="modal-header border-0 py-2">
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center p-2">
+        <img id="lightboxImg" src="" class="img-fluid rounded" style="max-height:85vh;"/>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// AJAX status update
+document.getElementById('statusForm')?.addEventListener('submit', function(e) {
+  e.preventDefault();
+  fetch(this.action, {
+    method:'POST', body:new FormData(this),
+    headers:{'X-Requested-With':'XMLHttpRequest'}
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      const msg = document.createElement('div');
+      msg.className = 'alert alert-success alert-dismissible fade show';
+      msg.innerHTML = `ሁኔታ ወደ "<strong>${data.new_status}</strong>" ተዘምኗል! <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+      document.querySelector('.page-content').prepend(msg);
+      setTimeout(() => location.reload(), 1600);
+    }
+  }).catch(() => this.submit());
+});
+
+// PDF fullscreen toggle
+function toggleFullscreen() {
+  const c = document.getElementById('pdfContainer');
+  const f = document.getElementById('pdfFrame');
+  const icon = document.getElementById('fsIcon');
+  if (!document.fullscreenElement) {
+    c.requestFullscreen && c.requestFullscreen();
+    f.style.height = '100vh';
+    icon.className = 'bi bi-fullscreen-exit';
+  } else {
+    document.exitFullscreen && document.exitFullscreen();
+    f.style.height = '600px';
+    icon.className = 'bi bi-fullscreen';
+  }
+}
+
+// Image lightbox
+function openLightbox(src) {
+  document.getElementById('lightboxImg').src = src;
+  new bootstrap.Modal(document.getElementById('lightboxModal')).show();
+}
+</script>
+{% endblock %}

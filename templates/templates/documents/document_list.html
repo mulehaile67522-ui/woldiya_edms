@@ -1,0 +1,270 @@
+{% extends "documents/base.html" %}
+{% block title %}ደብዳቤዎች — ወልድያ EDMS{% endblock %}
+{% block page_title %}ሁሉም ደብዳቤዎች{% endblock %}
+{% block page_subtitle %}{{ total_results }} ደብዳቤ ተገኝቷል{% endblock %}
+
+{% block extra_css %}
+<style>
+  .filter-card { background:#f8faff; border:1px solid #e2e8f0; border-radius:12px; padding:18px 20px; }
+  .quick-tabs .btn { border-radius:20px; font-size:.8rem; padding:5px 14px; }
+  .due-badge { font-size:.68rem; font-weight:700; padding:2px 7px; border-radius:10px; white-space:nowrap; }
+  .row-overdue td { background:#fff5f5 !important; }
+  .row-overdue td:first-child { border-left:4px solid #dc2626; }
+  .row-due-soon td { background:#fffbeb !important; }
+  .row-due-soon td:first-child { border-left:4px solid #d97706; }
+  .sort-link { color:inherit; text-decoration:none; white-space:nowrap; }
+  .sort-link:hover { color:var(--brand-gold); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Quick type tabs -->
+<div class="quick-tabs d-flex gap-2 mb-4 flex-wrap no-print">
+  <a href="{% url 'document_list' %}" class="btn {% if not request.GET.doc_type %}btn-brand{% else %}btn-outline-secondary{% endif %}">
+    <i class="bi bi-files me-1"></i>ሁሉም
+  </a>
+  <a href="?doc_type=INCOMING" class="btn {% if request.GET.doc_type == 'INCOMING' %}btn-brand{% else %}btn-outline-primary{% endif %}">
+    <i class="bi bi-inbox-fill me-1"></i>ገቢ
+  </a>
+  <a href="?doc_type=OUTGOING" class="btn {% if request.GET.doc_type == 'OUTGOING' %}btn-brand{% else %}btn-outline-secondary{% endif %}" style="{% if not request.GET.doc_type == 'OUTGOING' %}border-color:#6a1b9a;color:#6a1b9a;{% endif %}">
+    <i class="bi bi-send-fill me-1"></i>ወጪ
+  </a>
+  <a href="?doc_type=INTERNAL" class="btn {% if request.GET.doc_type == 'INTERNAL' %}btn-brand{% else %}btn-outline-secondary{% endif %}" style="{% if not request.GET.doc_type == 'INTERNAL' %}border-color:#00695c;color:#00695c;{% endif %}">
+    <i class="bi bi-journal-text me-1"></i>ውስጥ
+  </a>
+  <a href="?priority=URGENT" class="btn {% if request.GET.priority == 'URGENT' %}btn-danger{% else %}btn-outline-danger{% endif %}">
+    <i class="bi bi-lightning-fill me-1"></i>አስቸኳይ
+  </a>
+  <a href="?status=PENDING" class="btn {% if request.GET.status == 'PENDING' %}btn-warning text-dark{% else %}btn-outline-warning{% endif %}">
+    <i class="bi bi-hourglass-split me-1"></i>በጥበቃ
+  </a>
+  <a href="{% url 'overdue_documents' %}" class="btn btn-outline-danger">
+    <i class="bi bi-alarm me-1"></i>ጊዜ ያለፋቸው
+    {% if overdue_count %}<span class="badge bg-danger ms-1">{{ overdue_count }}</span>{% endif %}
+  </a>
+  {% if user_can_edit %}
+  <a href="{% url 'document_create' %}" class="btn btn-gold ms-auto">
+    <i class="bi bi-plus-lg me-1"></i>አዲስ ደብዳቤ
+  </a>
+  {% endif %}
+</div>
+
+<!-- Search & Filter -->
+<div class="filter-card mb-4 no-print">
+  <form method="get" id="searchForm">
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-md-4">
+        <label class="form-label mb-1"><i class="bi bi-search me-1"></i>ፈልግ</label>
+        {{ form.query }}
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label mb-1">ዓይነት</label>
+        {{ form.doc_type }}
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label mb-1">ሁኔታ</label>
+        {{ form.status }}
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label mb-1">ቅድሚያ</label>
+        {{ form.priority }}
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label mb-1">ምድብ</label>
+        {{ form.category }}
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label mb-1">ከቀን</label>
+        {{ form.date_from }}
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label mb-1">እስከቀን</label>
+        {{ form.date_to }}
+      </div>
+      <div class="col-12 col-md-4 d-flex gap-2">
+        <button type="submit" class="btn btn-brand flex-grow-1">
+          <i class="bi bi-search me-1"></i>ፈልግ
+        </button>
+        <a href="{% url 'document_list' %}" class="btn btn-outline-secondary" title="ሁሉም አሳይ">
+          <i class="bi bi-x-lg"></i>
+        </a>
+        <a href="?{{ request.GET.urlencode }}&export=csv" class="btn btn-outline-success" title="CSV ወርድ">
+          <i class="bi bi-file-earmark-spreadsheet"></i>
+        </a>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Results table -->
+<div class="page-card">
+  <div class="card-head">
+    <h6><i class="bi bi-table me-2"></i>ውጤቶች — {{ total_results }} ደብዳቤ</h6>
+    <div class="d-flex gap-2 align-items-center no-print">
+      <span class="text-muted small">ገጽ {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}</span>
+      <button onclick="window.print()" class="btn btn-sm btn-outline-secondary py-0">
+        <i class="bi bi-printer"></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="edms-table">
+      <thead>
+        <tr>
+          <th style="width:150px;">
+            <a href="?{{ request.GET.urlencode }}&sort=reference_number" class="sort-link text-white">
+              ቁጥር <i class="bi bi-arrow-down-up"></i>
+            </a>
+          </th>
+          <th>ርዕስ</th>
+          <th style="width:110px;">ዓይነት</th>
+          <th style="width:115px;">ሁኔታ</th>
+          <th style="width:100px;">ቅድሚያ</th>
+          <th style="width:120px;">ላኪ</th>
+          <th style="width:110px;">
+            <a href="?{{ request.GET.urlencode }}&sort=created_at" class="sort-link text-white">
+              ቀን <i class="bi bi-arrow-down-up"></i>
+            </a>
+          </th>
+          <th style="width:110px;">የቀን ገደብ</th>
+          <th style="width:80px;" class="no-print"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for doc in page_obj %}
+        <tr class="{% if doc.due_date and doc.due_date < today_date and doc.status != 'COMPLETED' and doc.status != 'ARCHIVED' %}row-overdue{% elif doc.due_date and doc.due_date >= today_date and doc.due_date <= today_plus7 and doc.status != 'COMPLETED' %}row-due-soon{% endif %}">
+          <td>
+            <a href="{% url 'document_detail' doc.pk %}" class="text-decoration-none">
+              <code class="text-primary fw-bold" style="font-size:.83rem;">{{ doc.reference_number }}</code>
+            </a>
+            {% if doc.file %}
+            <i class="bi bi-paperclip text-muted ms-1" title="ፋይል አለ" style="font-size:.75rem;"></i>
+            {% endif %}
+          </td>
+          <td style="max-width:220px;">
+            <a href="{% url 'document_detail' doc.pk %}" class="text-decoration-none text-dark fw-medium"
+               style="font-size:.9rem;" title="{{ doc.title }}">
+              {{ doc.title|truncatechars:45 }}
+            </a>
+            {% if doc.category %}
+            <div class="text-muted" style="font-size:.72rem;">{{ doc.category }}</div>
+            {% endif %}
+          </td>
+          <td><span class="eb eb-{{ doc.doc_type }}">{{ doc.get_doc_type_display }}</span></td>
+          <td><span class="eb eb-{{ doc.status }}">{{ doc.get_status_display }}</span></td>
+          <td><span class="eb eb-{{ doc.priority }}">{{ doc.get_priority_display }}</span></td>
+          <td class="text-muted" style="font-size:.83rem;" title="{{ doc.sender }}">
+            {{ doc.sender|truncatechars:18 }}
+          </td>
+          <td class="text-muted" style="font-size:.82rem; white-space:nowrap;">
+            {{ doc.created_at|date:"d/m/Y" }}
+          </td>
+          <td>
+            {% if doc.due_date %}
+              {% if doc.due_date < today_date and doc.status != 'COMPLETED' and doc.status != 'ARCHIVED' %}
+                <span class="due-badge bg-danger text-white">
+                  <i class="bi bi-alarm-fill me-1"></i>ዘግይቷል
+                </span>
+              {% elif doc.due_date == today_date %}
+                <span class="due-badge bg-warning text-dark">
+                  <i class="bi bi-alarm me-1"></i>ዛሬ!
+                </span>
+              {% else %}
+                <span class="due-badge bg-light text-dark border">
+                  {{ doc.due_date|date:"d/m/Y" }}
+                </span>
+              {% endif %}
+            {% else %}
+              <span class="text-muted" style="font-size:.78rem;">—</span>
+            {% endif %}
+          </td>
+          <td class="no-print">
+            <div class="d-flex gap-1">
+              <a href="{% url 'document_detail' doc.pk %}" class="btn btn-sm btn-outline-primary py-0 px-2" title="ዝርዝር">
+                <i class="bi bi-eye"></i>
+              </a>
+              {% if user_can_edit %}
+              <a href="{% url 'document_update' doc.pk %}" class="btn btn-sm btn-outline-secondary py-0 px-2" title="አርትዕ">
+                <i class="bi bi-pencil"></i>
+              </a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="9" class="text-center py-5">
+            <i class="bi bi-inbox fs-1 d-block mb-3 text-muted opacity-25"></i>
+            <div class="fw-medium text-muted">ምንም ደብዳቤ አልተገኘም</div>
+            <div class="text-muted small mt-1">ፍለጋ ይቀይሩ ወይም ፊልተር ያጥፉ</div>
+            <a href="{% url 'document_list' %}" class="btn btn-sm btn-outline-secondary mt-3">
+              <i class="bi bi-x-circle me-1"></i>ፊልተር አጥፋ
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if page_obj.has_other_pages %}
+  <div class="d-flex justify-content-between align-items-center px-4 py-3 border-top no-print">
+    <small class="text-muted">
+      {{ page_obj.paginator.count }} ደብዳቤ — ገጽ {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+    </small>
+    <nav>
+      <ul class="pagination pagination-sm mb-0 gap-1">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode }}">
+            <i class="bi bi-chevron-left"></i>
+          </a>
+        </li>
+        {% endif %}
+        {% for num in page_obj.paginator.page_range %}
+          {% if num == page_obj.number %}
+          <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+          {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ num }}&{{ request.GET.urlencode }}">{{ num }}</a>
+          </li>
+          {% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode }}">
+            <i class="bi bi-chevron-right"></i>
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-submit dropdowns on change
+document.querySelectorAll('#searchForm select').forEach(sel => {
+  sel.addEventListener('change', () => document.getElementById('searchForm').submit());
+});
+// Debounced live search
+let searchTimer;
+const searchInput = document.querySelector('#searchForm input[name="query"]');
+if (searchInput) {
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      if (searchInput.value.length === 0 || searchInput.value.length >= 2)
+        document.getElementById('searchForm').submit();
+    }, 500);
+  });
+}
+</script>
+{% endblock %}

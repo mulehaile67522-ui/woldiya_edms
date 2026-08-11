@@ -1,0 +1,167 @@
+{% extends "documents/base.html" %}
+{% block title %}ጊዜ ያለፋቸው ደብዳቤዎች — ወልድያ EDMS{% endblock %}
+{% block page_title %}ጊዜ ያለፋቸው ደብዳቤዎች{% endblock %}
+{% block page_subtitle %}{{ docs|length }} ደብዳቤ ጊዜ አልፏቸዋል{% endblock %}
+
+{% block extra_css %}
+<style>
+  .overdue-card {
+    border-left: 5px solid #dc2626;
+    border-radius: 0 12px 12px 0;
+    background: #fff;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    transition: transform .15s, box-shadow .15s;
+  }
+  .overdue-card:hover { transform: translateX(4px); box-shadow: 0 4px 16px rgba(0,0,0,.1); }
+  .overdue-card.priority-URGENT { border-left-color: #7f1d1d; background: #fff5f5; }
+  .overdue-card.priority-HIGH   { border-left-color: #dc2626; background: #fff8f8; }
+  .overdue-card.priority-MEDIUM { border-left-color: #f97316; }
+  .overdue-card.priority-LOW    { border-left-color: #f59e0b; }
+  .days-badge {
+    font-size: 1.15rem; font-weight: 800;
+    color: #dc2626; white-space: nowrap;
+  }
+  .days-label { font-size: .72rem; color: #94a3b8; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if docs %}
+<div class="alert alert-danger d-flex gap-3 align-items-center mb-4 no-print">
+  <i class="bi bi-alarm-fill fs-3 flex-shrink-0"></i>
+  <div>
+    <strong>{{ docs|length }} ደብዳቤ ጊዜ አልፏቸዋል!</strong>
+    ወዲያውኑ ሁኔታ ያዘምኑ ወይም ኃላፊ ያሳውቁ።
+  </div>
+</div>
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2 no-print">
+  <a href="{% url 'document_list' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>ወደ ዝርዝር
+  </a>
+  <a href="{% url 'document_list' %}?export=csv&status=PENDING&status=IN_PROGRESS" class="btn btn-outline-success btn-sm">
+    <i class="bi bi-file-earmark-spreadsheet me-1"></i>CSV ወርድ
+  </a>
+</div>
+
+{% if docs %}
+{% for doc in docs %}
+{% with days_late=doc.due_date|timesince:today %}
+<div class="overdue-card priority-{{ doc.priority }}">
+  <div class="d-flex gap-4 align-items-start flex-wrap">
+
+    <!-- Days overdue indicator -->
+    <div class="text-center flex-shrink-0" style="min-width:64px;">
+      <div class="days-badge">
+        {{ doc.due_date|timesince:today|truncatewords:2 }}
+      </div>
+      <div class="days-label">ዘግይቷል</div>
+    </div>
+
+    <!-- Main info -->
+    <div class="flex-grow-1" style="min-width:0;">
+      <div class="d-flex flex-wrap gap-2 mb-2">
+        <span class="eb eb-{{ doc.doc_type }}">{{ doc.get_doc_type_display }}</span>
+        <span class="eb eb-{{ doc.status }}">{{ doc.get_status_display }}</span>
+        <span class="eb eb-{{ doc.priority }}">{{ doc.get_priority_display }}</span>
+      </div>
+      <a href="{% url 'document_detail' doc.pk %}" class="text-decoration-none">
+        <h6 class="fw-bold mb-1 text-dark" style="font-size:1rem;">{{ doc.title }}</h6>
+      </a>
+      <div class="d-flex flex-wrap gap-3 text-muted" style="font-size:.82rem;">
+        <span><i class="bi bi-hash me-1"></i><code class="text-primary">{{ doc.reference_number }}</code></span>
+        <span><i class="bi bi-person me-1"></i>{{ doc.sender }}</span>
+        <span><i class="bi bi-person-check me-1"></i>{{ doc.receiver }}</span>
+        <span><i class="bi bi-calendar-x me-1 text-danger"></i><strong class="text-danger">{{ doc.due_date }}</strong></span>
+        {% if doc.assigned_to %}
+        <span><i class="bi bi-person-badge me-1"></i>{{ doc.assigned_to.get_full_name|default:doc.assigned_to.username }}</span>
+        {% endif %}
+      </div>
+      {% if doc.description %}
+      <div class="mt-2 text-muted" style="font-size:.82rem;">
+        {{ doc.description|truncatechars:120 }}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Actions -->
+    <div class="d-flex flex-column gap-2 flex-shrink-0 no-print">
+      <a href="{% url 'document_detail' doc.pk %}" class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-eye me-1"></i>ዝርዝር
+      </a>
+      {% if user_can_edit %}
+      <!-- Quick status form -->
+      <form method="post" action="{% url 'update_status' doc.pk %}" class="quick-status-form">
+        {% csrf_token %}
+        <div class="input-group input-group-sm">
+          <select name="status" class="form-select form-select-sm" style="font-size:.78rem;">
+            {% for val, label in doc.STATUS_CHOICES %}
+            <option value="{{ val }}" {% if val == doc.status %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-brand btn-sm" title="ሁኔታ ዘምን">
+            <i class="bi bi-check-lg"></i>
+          </button>
+        </div>
+      </form>
+      <a href="{% url 'document_update' doc.pk %}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-pencil me-1"></i>አርትዕ
+      </a>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endwith %}
+{% endfor %}
+
+{% else %}
+<div class="page-card p-5 text-center">
+  <i class="bi bi-check-circle-fill fs-1 text-success d-block mb-3"></i>
+  <h5 class="fw-bold text-success mb-2">ሁሉም ደብዳቤዎች ወቅታዊ ናቸው!</h5>
+  <p class="text-muted mb-4">ጊዜ ያለፋቸው ደብዳቤዎች የሉም።</p>
+  <a href="{% url 'dashboard' %}" class="btn btn-brand">
+    <i class="bi bi-speedometer2 me-1"></i>ወደ ዳሽቦርድ
+  </a>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// AJAX quick status update
+document.querySelectorAll('.quick-status-form').forEach(form => {
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    fetch(this.action, {
+      method: 'POST',
+      body: new FormData(this),
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        // Fade out the card
+        const card = this.closest('.overdue-card');
+        card.style.transition = 'opacity .4s, transform .4s';
+        card.style.opacity = '0';
+        card.style.transform = 'translateX(20px)';
+        setTimeout(() => { card.remove(); updateCount(); }, 420);
+      }
+    }).catch(() => this.submit());
+  });
+});
+
+function updateCount() {
+  const remaining = document.querySelectorAll('.overdue-card').length;
+  const sub = document.querySelector('#topbar .page-title small');
+  if (sub) sub.textContent = remaining + ' ደብዳቤ ጊዜ አልፏቸዋል';
+  if (remaining === 0) location.reload();
+}
+</script>
+{% endblock %}

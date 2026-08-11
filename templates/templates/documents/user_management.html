@@ -1,0 +1,78 @@
+{% extends "documents/base.html" %}
+{% block title %}ተጠቃሚዎች — ወልድያ EDMS{% endblock %}
+{% block page_title %}ተጠቃሚ አስተዳደር{% endblock %}
+{% block page_subtitle %}{{ users|length }} ተጠቃሚ{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-end mb-3 no-print">
+  <a href="/admin/auth/user/add/" class="btn btn-gold btn-sm">
+    <i class="bi bi-person-plus-fill me-1"></i>አዲስ ተጠቃሚ
+  </a>
+</div>
+
+<div class="page-card">
+  <div class="table-responsive">
+    <table class="edms-table">
+      <thead>
+        <tr>
+          <th>ተጠቃሚ</th>
+          <th>ሙሉ ስም</th>
+          <th>ክፍል</th>
+          <th>ሚና</th>
+          <th>ደብዳቤዎች</th>
+          <th>ሁኔታ</th>
+          <th>ሚና ቀይር</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td class="fw-semibold">{{ u.username }}</td>
+          <td>{{ u.get_full_name|default:"—" }}</td>
+          <td class="text-muted small">{{ u.profile.department|default:"—" }}</td>
+          <td>
+            <span class="eb
+              {% if u.profile.role == 'ADMIN' %}eb-URGENT
+              {% elif u.profile.role == 'REGISTRAR' %}eb-IN_PROGRESS
+              {% else %}eb-ARCHIVED{% endif %}">
+              {{ u.profile.get_role_display }}
+            </span>
+          </td>
+          <td><span class="eb eb-INCOMING">{{ u.documents_created.count }}</span></td>
+          <td>
+            {% if u.is_active %}
+            <span class="eb eb-COMPLETED">ንቁ</span>
+            {% else %}
+            <span class="eb eb-ARCHIVED">ቆሟል</span>
+            {% endif %}
+          </td>
+          <td>
+            <!-- Inline role change form -->
+            <form method="post" class="d-flex gap-1 align-items-center" style="min-width:220px;">
+              {% csrf_token %}
+              <input type="hidden" name="user_id" value="{{ u.pk }}">
+              <select name="role" class="form-select form-select-sm" style="font-size:.78rem;width:auto;">
+                {% for val, label in role_choices %}
+                <option value="{{ val }}" {% if val == u.profile.role %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              <input type="text" name="department" value="{{ u.profile.department }}"
+                     class="form-control form-control-sm" placeholder="ክፍል" style="font-size:.78rem;width:90px;">
+              <button type="submit" class="btn btn-brand btn-sm py-0 px-2" title="ዘምን">
+                <i class="bi bi-check-lg"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center text-muted py-4">ምንም ተጠቃሚ አልተገኘም</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
