@@ -12,10 +12,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Create staticfiles directory
-RUN mkdir -p staticfiles
+RUN mkdir -p staticfiles static/img media
 
 EXPOSE 8000
 
-CMD python manage.py migrate --run-syncdb && \
-    gunicorn edms_project.wsgi --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --log-level info
+CMD sh -c "python manage.py migrate --run-syncdb && gunicorn edms_project.wsgi:application --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --log-level debug 2>&1"
