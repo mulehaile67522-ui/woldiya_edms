@@ -12,8 +12,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# Create staticfiles directory
+RUN mkdir -p staticfiles
+
 EXPOSE 8000
 
 CMD python manage.py migrate --run-syncdb && \
-    python manage.py collectstatic --noinput --ignore=*.scss || true && \
-    gunicorn edms_project.wsgi --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --log-level debug
+    gunicorn edms_project.wsgi --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --log-level info
