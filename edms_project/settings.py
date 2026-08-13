@@ -3,14 +3,12 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ── Security ──────────────────────────────────────────────────────────
-SECRET_KEY  = os.environ.get('SECRET_KEY', 'django-insecure-woldiya-edms-change-in-production')
-DEBUG       = os.environ.get('DEBUG', 'True') == 'True'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-woldiya-2026-change-me')
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS_ENV = os.environ.get('ALLOWED_HOSTS', '')
-ALLOWED_HOSTS = ALLOWED_HOSTS_ENV.split(',') if ALLOWED_HOSTS_ENV else ['*']
+ALLOWED_HOSTS_STR = os.environ.get('ALLOWED_HOSTS', '')
+ALLOWED_HOSTS = ALLOWED_HOSTS_STR.split(',') if ALLOWED_HOSTS_STR else ['*']
 
-# ── Apps ──────────────────────────────────────────────────────────────
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -21,7 +19,6 @@ INSTALLED_APPS = [
     'documents',
 ]
 
-# ── Middleware ────────────────────────────────────────────────────────
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
@@ -54,7 +51,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'edms_project.wsgi.application'
 
-# ── Database ──────────────────────────────────────────────────────────
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
 if DATABASE_URL:
     import dj_database_url
@@ -62,18 +58,16 @@ if DATABASE_URL:
         'default': dj_database_url.config(
             default=DATABASE_URL,
             conn_max_age=600,
-            ssl_require=not DEBUG,
         )
     }
 else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME':    BASE_DIR / 'db.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
 
-# ── Auth ──────────────────────────────────────────────────────────────
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -81,31 +75,27 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-LOGIN_URL           = '/login/'
-LOGIN_REDIRECT_URL  = '/'
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
 
-# ── Localisation ──────────────────────────────────────────────────────
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE     = 'Africa/Addis_Ababa'
-USE_I18N      = True
-USE_TZ        = True
+TIME_ZONE = 'Africa/Addis_Ababa'
+USE_I18N = True
+USE_TZ = True
 
-# ── Static & Media ────────────────────────────────────────────────────
-STATIC_URL       = '/static/'
+STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
-STATIC_ROOT      = BASE_DIR / 'staticfiles'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-MEDIA_URL  = '/media/'
+MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# ── File uploads ──────────────────────────────────────────────────────
-DEFAULT_AUTO_FIELD          = 'django.db.models.BigAutoField'
-DATA_UPLOAD_MAX_MEMORY_SIZE  = 20 * 1024 * 1024
-FILE_UPLOAD_MAX_MEMORY_SIZE  = 20 * 1024 * 1024
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
 
-# ── Messages → Bootstrap tags ─────────────────────────────────────────
 from django.contrib.messages import constants as mc
 MESSAGE_TAGS = {
     mc.DEBUG:   'secondary',
@@ -115,16 +105,7 @@ MESSAGE_TAGS = {
     mc.ERROR:   'danger',
 }
 
-# ── CSRF trusted origins (Railway) ───────────────────────────────────
 CSRF_TRUSTED_ORIGINS = [
     'https://*.railway.app',
     'https://*.up.railway.app',
 ]
-
-# ── Production security ───────────────────────────────────────────────
-if not DEBUG:
-    SECURE_HSTS_SECONDS            = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_SSL_REDIRECT            = True
-    SESSION_COOKIE_SECURE          = True
-    CSRF_COOKIE_SECURE             = True
