@@ -1,5 +1,6 @@
 [variables]
 MISE_PYTHON_GITHUB_ATTESTATIONS = "false"
+MISE_PYTHON_COMPILE = "0"
 
 [phases.setup]
 nixPkgs = ["python312", "gcc"]
