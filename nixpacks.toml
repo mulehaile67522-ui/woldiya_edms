@@ -1,9 +1,5 @@
-[variables]
-MISE_PYTHON_GITHUB_ATTESTATIONS = "false"
-MISE_PYTHON_COMPILE = "0"
-
 [phases.setup]
-nixPkgs = ["python312", "gcc"]
+nixPkgs = ["python311", "gcc"]
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]
