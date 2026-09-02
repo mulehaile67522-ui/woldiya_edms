@@ -23,8 +23,18 @@ class Command(BaseCommand):
         username = os.environ.get('DJANGO_SUPERUSER_USERNAME', 'admin')
         password = os.environ.get('DJANGO_SUPERUSER_PASSWORD', 'Admin@1234')
         email    = os.environ.get('DJANGO_SUPERUSER_EMAIL',    'admin@woldiya.gov.et')
+        update_password = os.environ.get('DJANGO_SUPERUSER_UPDATE_PASSWORD', '').lower() in ('1', 'true', 'yes')
 
-        if User.objects.filter(username=username).exists():
+        user = User.objects.filter(username=username).first()
+        if user:
+          if update_password:
+            user.set_password(password)
+            user.email = email
+            user.save(update_fields=['password', 'email'])
+            self.stdout.write(self.style.SUCCESS(
+              f'Superuser "{username}" password updated successfully.'
+            ))
+            return
             self.stdout.write(self.style.WARNING(
                 f'Superuser "{username}" already exists — skipping.'
             ))

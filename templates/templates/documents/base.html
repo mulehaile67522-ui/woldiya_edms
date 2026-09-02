@@ -22,6 +22,12 @@
     *, *::before, *::after { box-sizing: border-box; }
     body { font-family: 'Inter','Noto Serif Ethiopic',sans-serif; background:#f0f4f8; color:#1e293b; min-height:100vh; }
 
+    /* Keyboard focus ring styling for accessibility (a11y) */
+    :focus-visible {
+      outline: 2px solid var(--brand-gold) !important;
+      outline-offset: 2px !important;
+    }
+
     /* ── Sidebar ── */
     #sidebar {
       width: var(--sidebar-w); min-height:100vh;

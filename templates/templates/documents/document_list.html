@@ -56,7 +56,12 @@
     <div class="row g-3 align-items-end">
       <div class="col-12 col-md-4">
         <label class="form-label mb-1"><i class="bi bi-search me-1"></i>ፈልግ</label>
-        {{ form.query }}
+        <div class="position-relative">
+          {{ form.query }}
+          <div id="searchSpinner" class="spinner-border spinner-border-sm text-primary position-absolute end-0 top-50 translate-middle-y me-3 d-none" role="status">
+            <span class="visually-hidden">በመፈለግ ላይ...</span>
+          </div>
+        </div>
       </div>
       <div class="col-6 col-md-2">
         <label class="form-label mb-1">ዓይነት</label>
@@ -252,17 +257,25 @@
 <script>
 // Auto-submit dropdowns on change
 document.querySelectorAll('#searchForm select').forEach(sel => {
-  sel.addEventListener('change', () => document.getElementById('searchForm').submit());
+  sel.addEventListener('change', () => {
+    document.getElementById('searchSpinner')?.classList.remove('d-none');
+    document.getElementById('searchForm').submit();
+  });
 });
-// Debounced live search
+// Debounced live search with spinner indicator
 let searchTimer;
 const searchInput = document.querySelector('#searchForm input[name="query"]');
+const spinner = document.getElementById('searchSpinner');
 if (searchInput) {
   searchInput.addEventListener('input', () => {
     clearTimeout(searchTimer);
+    if (spinner) spinner.classList.remove('d-none');
     searchTimer = setTimeout(() => {
-      if (searchInput.value.length === 0 || searchInput.value.length >= 2)
+      if (searchInput.value.length === 0 || searchInput.value.length >= 2) {
         document.getElementById('searchForm').submit();
+      } else {
+        if (spinner) spinner.classList.add('d-none');
+      }
     }, 500);
   });
 }

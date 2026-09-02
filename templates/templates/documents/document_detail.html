@@ -284,9 +284,11 @@
 
 {% block extra_js %}
 <script>
-// AJAX status update
+// AJAX status update with feedback
 document.getElementById('statusForm')?.addEventListener('submit', function(e) {
   e.preventDefault();
+  const btn = this.querySelector('button[type="submit"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>በማዘመን ላይ...'; }
   fetch(this.action, {
     method:'POST', body:new FormData(this),
     headers:{'X-Requested-With':'XMLHttpRequest'}
@@ -295,10 +297,10 @@ document.getElementById('statusForm')?.addEventListener('submit', function(e) {
   .then(data => {
     if (data.success) {
       const msg = document.createElement('div');
-      msg.className = 'alert alert-success alert-dismissible fade show';
-      msg.innerHTML = `ሁኔታ ወደ "<strong>${data.new_status}</strong>" ተዘምኗል! <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
-      document.querySelector('.page-content').prepend(msg);
-      setTimeout(() => location.reload(), 1600);
+      msg.className = 'alert alert-success alert-dismissible fade show shadow-sm';
+      msg.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i>ሁኔታ ወደ "<strong>${data.new_status}</strong>" ተዘምኗል! <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+      document.querySelector('.main-content, #main').prepend(msg);
+      setTimeout(() => location.reload(), 1200);
     }
   }).catch(() => this.submit());
 });
