@@ -16,7 +16,7 @@ from .models import (Document, Category, Notification,
                      InnovationProject, Training, UserProfile, ActivityLog)
 from .forms import DocumentForm, DocumentSearchForm, CategoryForm
 from .activity import log_activity, notify_users
-from .decorators import registrar_required
+from .decorators import registrar_required, admin_required
 from .utils import generate_reference_number, generate_qr_code
 
 
@@ -74,7 +74,7 @@ def dashboard(request):
         chart_labels.append(d.strftime('%b %Y'))
         chart_data.append(docs.filter(created_at__year=d.year, created_at__month=d.month).count())
 
-    type_data    = {'ገቢ ደብዳቤ': incoming, 'ወጪ ደብዳቤ': outgoing, 'የውስጥ ማስታወሻ': internal}
+    type_data    = {'ገቢ ደብዳቤ': incoming, 'ወጪ ደብዳቤ': outgoing, 'የ ማስታወሻ': internal}
     status_labels = [s[1] for s in Document.STATUS_CHOICES]
     status_values = [docs.filter(status=s[0]).count() for s in Document.STATUS_CHOICES]
 
@@ -194,7 +194,7 @@ def document_create(request):
 # ──────────────────────────── UPDATE ─────────────────────────────────
 
 @login_required
-@registrar_required
+@admin_required
 def document_update(request, pk):
     doc        = get_object_or_404(Document, pk=pk)
     old_status = doc.status
@@ -216,7 +216,7 @@ def document_update(request, pk):
 # ──────────────────────────── DELETE ─────────────────────────────────
 
 @login_required
-@registrar_required
+@admin_required
 def document_delete(request, pk):
     doc = get_object_or_404(Document, pk=pk)
     if request.method == 'POST':
@@ -230,7 +230,7 @@ def document_delete(request, pk):
 # ──────────────────────────── QUICK STATUS ───────────────────────────
 
 @login_required
-@registrar_required
+@admin_required
 @require_POST
 def update_status(request, pk):
     doc        = get_object_or_404(Document, pk=pk)

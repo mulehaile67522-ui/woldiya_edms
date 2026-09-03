@@ -7,7 +7,13 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-woldiya-2026-change-m
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS_STR = os.environ.get('ALLOWED_HOSTS', '')
-ALLOWED_HOSTS = ALLOWED_HOSTS_STR.split(',') if ALLOWED_HOSTS_STR else ['*']
+ALLOWED_HOSTS = ALLOWED_HOSTS_STR.split(',') if ALLOWED_HOSTS_STR else [
+    '*',
+    'localhost',
+    '127.0.0.1',
+    '192.168.100.129',
+    '0.0.0.0',
+]
 
 INSTALLED_APPS = [
     'django.contrib.admin',

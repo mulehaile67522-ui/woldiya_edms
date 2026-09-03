@@ -43,7 +43,7 @@
     <i class="bi bi-alarm me-1"></i>ጊዜ ያለፋቸው
     {% if overdue_count %}<span class="badge bg-danger ms-1">{{ overdue_count }}</span>{% endif %}
   </a>
-  {% if user_can_edit %}
+  {% if user_can_create %}
   <a href="{% url 'document_create' %}" class="btn btn-gold ms-auto">
     <i class="bi bi-plus-lg me-1"></i>አዲስ ደብዳቤ
   </a>
@@ -190,7 +190,7 @@
               <a href="{% url 'document_detail' doc.pk %}" class="btn btn-sm btn-outline-primary py-0 px-2" title="ዝርዝር">
                 <i class="bi bi-eye"></i>
               </a>
-              {% if user_can_edit %}
+              {% if user_is_admin %}
               <a href="{% url 'document_update' doc.pk %}" class="btn btn-sm btn-outline-secondary py-0 px-2" title="አርትዕ">
                 <i class="bi bi-pencil"></i>
               </a>
