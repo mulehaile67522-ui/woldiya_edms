@@ -50,4 +50,7 @@ urlpatterns = [
     # Profile & My Documents
     path('profile/',      views.profile_view,  name='profile'),
     path('my-documents/', views.my_documents,  name='my_documents'),
+
+    # User management
+    path('users/create/', views.create_user_view, name='create_user'),
 ]

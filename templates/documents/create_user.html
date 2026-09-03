@@ -1,0 +1,131 @@
+{% extends "documents/base.html" %}
+{% block title %}አዲስ ተጠቃሚ — ወልድያ EDMS{% endblock %}
+{% block page_title %}አዲስ ተጠቃሚ ፍጠር{% endblock %}
+{% block page_subtitle %}የቢሮ ሠራተኛ መለያ ያክሉ{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+
+    <div class="page-card p-4">
+      <h6 class="fw-bold mb-4" style="color:var(--brand);">
+        <i class="bi bi-person-plus-fill me-2"></i>አዲስ ተጠቃሚ ምዝገባ
+      </h6>
+
+      <form method="post">
+        {% csrf_token %}
+
+        <!-- Account info -->
+        <div class="mb-4 pb-4 border-bottom">
+          <div class="text-muted small fw-bold mb-3 text-uppercase" style="letter-spacing:.8px;">
+            <i class="bi bi-person me-1"></i> የመለያ መረጃ
+          </div>
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <label class="form-label">Username <span class="text-danger">*</span></label>
+              <input type="text" name="username" class="form-control"
+                     value="{{ post.username }}" placeholder="health_office" required>
+              <div class="text-muted" style="font-size:.75rem;">ፊደላት፣ ቁጥሮች እና _ ብቻ</div>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label">ኢሜይል</label>
+              <input type="email" name="email" class="form-control"
+                     value="{{ post.email }}" placeholder="office@woldiya.gov.et">
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label">Password <span class="text-danger">*</span></label>
+              <input type="password" name="password" class="form-control"
+                     placeholder="ቢያንስ 8 ፊደላት" required>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label">Password አረጋግጥ <span class="text-danger">*</span></label>
+              <input type="password" name="password2" class="form-control"
+                     placeholder="ድጋሜ ያስገቡ" required>
+            </div>
+          </div>
+        </div>
+
+        <!-- Personal info -->
+        <div class="mb-4 pb-4 border-bottom">
+          <div class="text-muted small fw-bold mb-3 text-uppercase" style="letter-spacing:.8px;">
+            <i class="bi bi-person-badge me-1"></i> የሰው መረጃ
+          </div>
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <label class="form-label">የመጀመሪያ ስም</label>
+              <input type="text" name="first_name" class="form-control"
+                     value="{{ post.first_name }}" placeholder="ለምሳሌ: አበበ">
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label">የአባት ስም</label>
+              <input type="text" name="last_name" class="form-control"
+                     value="{{ post.last_name }}" placeholder="ለምሳሌ: ከበደ">
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label">ስልክ ቁጥር</label>
+              <input type="text" name="phone" class="form-control"
+                     value="{{ post.phone }}" placeholder="+251...">
+            </div>
+          </div>
+        </div>
+
+        <!-- Role & Department -->
+        <div class="mb-4">
+          <div class="text-muted small fw-bold mb-3 text-uppercase" style="letter-spacing:.8px;">
+            <i class="bi bi-shield-check me-1"></i> ሚና እና ቢሮ
+          </div>
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <label class="form-label">ሚና <span class="text-danger">*</span></label>
+              <select name="role" class="form-select" required>
+                {% for val, label in role_choices %}
+                <option value="{{ val }}" {% if post.role == val %}selected{% endif %}>
+                  {{ label }}
+                </option>
+                {% endfor %}
+              </select>
+              <div class="mt-2 p-2 rounded" style="background:#f8faff;font-size:.78rem;">
+                <div><span class="eb eb-URGENT" style="font-size:.68rem;">አስተዳዳሪ</span> — ሁሉም ፈቃዶች</div>
+                <div class="mt-1"><span class="eb eb-IN_PROGRESS" style="font-size:.68rem;">ሰናዳ</span> — ደብዳቤ ምዝገባ</div>
+                <div class="mt-1"><span class="eb eb-ARCHIVED" style="font-size:.68rem;">ተመልካች</span> — ማየት ብቻ</div>
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label">ክፍል / ቢሮ</label>
+              <select name="department" class="form-select">
+                <option value="">— ይምረጡ —</option>
+                <option value="ፈጠራ እና ቴክኖሎጂ">ፈጠራ እና ቴክኖሎጂ</option>
+                <option value="ጤና ቢሮ">ጤና ቢሮ</option>
+                <option value="ገቢ ቢሮ">ገቢ ቢሮ</option>
+                <option value="ግብርና ቢሮ">ግብርና ቢሮ</option>
+                <option value="ትምህርት ቢሮ">ትምህርት ቢሮ</option>
+                <option value="መሬት ቢሮ">መሬት ቢሮ</option>
+                <option value="ፀጥታ ቢሮ">ፀጥታ ቢሮ</option>
+                <option value="ማህበራዊ ቢሮ">ማህበራዊ ቢሮ</option>
+                <option value="ንግድ ቢሮ">ንግድ ቢሮ</option>
+                <option value="መሰረተ ልማት">መሰረተ ልማት</option>
+                <option value="ሕዝብ ግንኙነት">ሕዝብ ግንኙነት</option>
+                <option value="ፋይናንስ ቢሮ">ፋይናንስ ቢሮ</option>
+                <option value="ሕግ ቢሮ">ሕግ ቢሮ</option>
+                <option value="ዕቅድ ቢሮ">ዕቅድ ቢሮ</option>
+                <option value="ሌላ">ሌላ</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="d-flex gap-3">
+          <button type="submit" class="btn btn-gold px-4 fw-bold">
+            <i class="bi bi-person-plus me-2"></i>ተጠቃሚ ፍጠር
+          </button>
+          <a href="{% url 'user_management' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-x-lg me-1"></i>ሰርዝ
+          </a>
+        </div>
+      </form>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

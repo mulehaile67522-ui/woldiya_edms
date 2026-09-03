@@ -16,7 +16,7 @@ from .models import (Document, Category, Notification,
                      InnovationProject, Training, UserProfile, ActivityLog)
 from .forms import DocumentForm, DocumentSearchForm, CategoryForm
 from .activity import log_activity, notify_users
-from .decorators import registrar_required
+from .decorators import registrar_required, admin_required
 from .utils import generate_reference_number, generate_qr_code
 
 
@@ -74,7 +74,7 @@ def dashboard(request):
         chart_labels.append(d.strftime('%b %Y'))
         chart_data.append(docs.filter(created_at__year=d.year, created_at__month=d.month).count())
 
-    type_data    = {'ገቢ ደብዳቤ': incoming, 'ወጪ ደብዳቤ': outgoing, 'የውስጥ ማስታወሻ': internal}
+    type_data    = {'ገቢ ደብዳቤ': incoming, 'ወጪ ደብዳቤ': outgoing, 'የ ማስታወሻ': internal}
     status_labels = [s[1] for s in Document.STATUS_CHOICES]
     status_values = [docs.filter(status=s[0]).count() for s in Document.STATUS_CHOICES]
 
@@ -194,7 +194,7 @@ def document_create(request):
 # ──────────────────────────── UPDATE ─────────────────────────────────
 
 @login_required
-@registrar_required
+@admin_required
 def document_update(request, pk):
     doc        = get_object_or_404(Document, pk=pk)
     old_status = doc.status
@@ -216,7 +216,7 @@ def document_update(request, pk):
 # ──────────────────────────── DELETE ─────────────────────────────────
 
 @login_required
-@registrar_required
+@admin_required
 def document_delete(request, pk):
     doc = get_object_or_404(Document, pk=pk)
     if request.method == 'POST':
@@ -230,7 +230,7 @@ def document_delete(request, pk):
 # ──────────────────────────── QUICK STATUS ───────────────────────────
 
 @login_required
-@registrar_required
+@admin_required
 @require_POST
 def update_status(request, pk):
     doc        = get_object_or_404(Document, pk=pk)
@@ -729,4 +729,69 @@ def my_documents(request):
         'status_filter':  status_filter,
         'status_choices': Document.STATUS_CHOICES,
         'today':          today,
+    })
+
+
+# ──────────────────────────── CREATE USER ────────────────────────────
+
+@login_required
+def create_user_view(request):
+    """ADMIN-only: create a new user with role and department."""
+    from .decorators import _get_role
+    if _get_role(request.user) != 'ADMIN':
+        messages.error(request, 'ይህን ተግባር ለማከናወን የአስተዳዳሪ ፈቃድ ያስፈልጋል።')
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        username   = request.POST.get('username', '').strip()
+        password   = request.POST.get('password', '').strip()
+        password2  = request.POST.get('password2', '').strip()
+        first_name = request.POST.get('first_name', '').strip()
+        last_name  = request.POST.get('last_name', '').strip()
+        email      = request.POST.get('email', '').strip()
+        role       = request.POST.get('role', 'VIEWER')
+        department = request.POST.get('department', '').strip()
+        phone      = request.POST.get('phone', '').strip()
+
+        # Validation
+        errors = []
+        if not username:
+            errors.append('Username ያስፈልጋል።')
+        elif User.objects.filter(username=username).exists():
+            errors.append(f'"{username}" አስቀድሞ ተመዝግቧል።')
+        if not password:
+            errors.append('Password ያስፈልጋል።')
+        elif len(password) < 8:
+            errors.append('Password ቢያንስ 8 ፊደላት ይኑሩት።')
+        elif password != password2:
+            errors.append('Passwords አይዛመዱም።')
+
+        if errors:
+            for e in errors:
+                messages.error(request, e)
+            return render(request, 'documents/create_user.html', {
+                'role_choices': UserProfile.ROLE_CHOICES,
+                'post': request.POST,
+            })
+
+        # Create user
+        user = User.objects.create_user(
+            username=username,
+            password=password,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+        )
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile.role       = role
+        profile.department = department
+        profile.phone      = phone
+        profile.save()
+
+        messages.success(request, f'ተጠቃሚ "{username}" ({first_name} {last_name}) ተፈጠረ!')
+        return redirect('user_management')
+
+    return render(request, 'documents/create_user.html', {
+        'role_choices': UserProfile.ROLE_CHOICES,
+        'post': {},
     })
