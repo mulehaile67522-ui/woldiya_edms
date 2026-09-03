@@ -3,19 +3,48 @@ from django.contrib import messages
 from functools import wraps
 
 
-def registrar_required(view_func):
-    """Allow only ADMIN and REGISTRAR roles to create/edit/delete."""
+def _get_role(user):
+    """Return user role string safely."""
+    if user.is_superuser or user.is_staff:
+        return 'ADMIN'
+    try:
+        return user.profile.role
+    except Exception:
+        return 'VIEWER'
+
+
+def admin_required(view_func):
+    """Only ADMIN (superuser/staff or role=ADMIN) can access."""
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect('login')
-        if request.user.is_superuser or request.user.is_staff:
+        if _get_role(request.user) == 'ADMIN':
             return view_func(request, *args, **kwargs)
-        try:
-            if request.user.profile.role in ('ADMIN', 'REGISTRAR'):
-                return view_func(request, *args, **kwargs)
-        except Exception:
-            pass
-        messages.error(request, 'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም።')
+        messages.error(request, 'ይህን ተግባር ለማከናወን የአስተዳዳሪ ፈቃድ ያስፈልጋል።')
         return redirect('dashboard')
+    return wrapper
+
+
+def registrar_required(view_func):
+    """Only ADMIN and REGISTRAR can create documents."""
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('login')
+        role = _get_role(request.user)
+        if role in ('ADMIN', 'REGISTRAR'):
+            return view_func(request, *args, **kwargs)
+        messages.error(request, 'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም። ለአስተዳዳሪ ያሳውቁ።')
+        return redirect('dashboard')
+    return wrapper
+
+
+def viewer_required(view_func):
+    """Any logged-in user can view — just needs authentication."""
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('login')
+        return view_func(request, *args, **kwargs)
     return wrapper
