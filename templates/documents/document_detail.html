@@ -57,11 +57,9 @@
   <a href="{% url 'official_letter_pdf' doc.pk %}" target="_blank" class="btn btn-sm btn-outline-dark">
     <i class="bi bi-file-earmark-richtext me-1"></i>ደብዳቤ PDF
   </a>
-  {% if user_can_create %}
   <a href="{% url 'document_forward' doc.pk %}" class="btn btn-sm btn-outline-success">
     <i class="bi bi-forward-fill me-1"></i>አስተላልፍ
   </a>
-  {% endif %}
   {% if user_is_admin %}
   <a href="{% url 'document_delete' doc.pk %}" class="btn btn-sm btn-outline-danger ms-auto">
     <i class="bi bi-trash me-1"></i>ሰርዝ
