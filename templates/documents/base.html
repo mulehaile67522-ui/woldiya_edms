@@ -22,6 +22,12 @@
     *, *::before, *::after { box-sizing: border-box; }
     body { font-family: 'Inter','Noto Serif Ethiopic',sans-serif; background:#f0f4f8; color:#1e293b; min-height:100vh; }
 
+    /* Keyboard focus ring styling for accessibility (a11y) */
+    :focus-visible {
+      outline: 2px solid var(--brand-gold) !important;
+      outline-offset: 2px !important;
+    }
+
     /* ── Sidebar ── */
     #sidebar {
       width: var(--sidebar-w); min-height:100vh;
@@ -258,6 +264,10 @@
     <li><a href="{% url 'document_list' %}" class="nav-link {% if request.resolver_match.url_name == 'document_list' %}active{% endif %}">
       <i class="bi bi-files"></i> ሁሉም ደብዳቤዎች
     </a></li>
+    <li><a href="{% url 'inbox' %}" class="nav-link {% if request.resolver_match.url_name == 'inbox' %}active{% endif %}">
+      <i class="bi bi-inbox-fill" style="color:#ffd54f"></i> ገቢ መልዕክቶች
+      {% with inbox_count=request.user.received_forwards.filter.count %}{% endwith %}
+    </a></li>
     <li><a href="{% url 'document_list' %}?doc_type=INCOMING" class="nav-link">
       <i class="bi bi-inbox-fill" style="color:#90caf9"></i> ገቢ ደብዳቤ
     </a></li>
@@ -284,9 +294,11 @@
     <li><a href="{% url 'document_create' %}" class="nav-link">
       <i class="bi bi-plus-circle-fill" style="color:#a5d6a7"></i> አዲስ ደብዳቤ
     </a></li>
+    {% if user_can_create %}
     <li><a href="{% url 'my_documents' %}" class="nav-link {% if request.resolver_match.url_name == 'my_documents' %}active{% endif %}">
       <i class="bi bi-person-lines-fill" style="color:#80cbc4"></i> የእኔ ደብዳቤዎች
     </a></li>
+    {% endif %}
     <li><a href="{% url 'category_list' %}" class="nav-link {% if 'category' in request.resolver_match.url_name %}active{% endif %}">
       <i class="bi bi-tags-fill" style="color:#ffab91"></i> ምድቦች
     </a></li>
@@ -319,6 +331,11 @@
     <i class="bi bi-person-circle me-1"></i>
     <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
     {% if request.user.profile.department %}<span style="font-size:.72rem;">{{ request.user.profile.department }}</span>{% endif %}
+    <span style="font-size:.68rem;padding:2px 7px;border-radius:10px;
+      background:{% if user_is_admin %}#c62828{% elif user_is_registrar %}#1565c0{% else %}#546e7a{% endif %};
+      color:#fff;display:inline-block;margin-top:3px;">
+      {% if user_is_admin %}አስተዳዳሪ{% elif user_is_registrar %}ሰናዳ{% else %}ተመልካች{% endif %}
+    </span>
     <a href="{% url 'profile' %}" class="d-block mt-1">
       <i class="bi bi-person-gear me-1"></i>መገለጫ
     </a>

@@ -245,3 +245,29 @@ class Training(models.Model):
 
     def __str__(self):
         return self.title
+
+
+# ──────────────────────────────────────────────
+#  DOCUMENT FORWARDING
+# ──────────────────────────────────────────────
+
+class DocumentForward(models.Model):
+    """Track when a document is forwarded from one department to another."""
+    document     = models.ForeignKey(Document, on_delete=models.CASCADE,
+                                      related_name='forwards', verbose_name='ደብዳቤ')
+    from_user    = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                      related_name='forwarded_docs', verbose_name='ላካ')
+    to_user      = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                      related_name='received_forwards', verbose_name='ተቀባይ')
+    to_department = models.CharField(max_length=100, blank=True, verbose_name='ወደ ቢሮ')
+    note         = models.TextField(blank=True, verbose_name='ማስታወሻ')
+    is_read      = models.BooleanField(default=False, verbose_name='ታይቷል')
+    forwarded_at = models.DateTimeField(auto_now_add=True, verbose_name='የተላከበት ቀን')
+
+    class Meta:
+        ordering            = ['-forwarded_at']
+        verbose_name        = 'ደብዳቤ ማስተላለፍ'
+        verbose_name_plural = 'ደብዳቤ ማስተላለፍዎች'
+
+    def __str__(self):
+        return f"{self.document.reference_number} → {self.to_department or self.to_user}"

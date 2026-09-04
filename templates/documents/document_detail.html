@@ -37,7 +37,7 @@
   <a href="{% url 'document_list' %}" class="btn btn-outline-secondary btn-sm">
     <i class="bi bi-arrow-left me-1"></i>ተመለስ
   </a>
-  {% if user_can_edit %}
+  {% if user_is_admin %}
   <a href="{% url 'document_update' doc.pk %}" class="btn btn-sm btn-outline-primary">
     <i class="bi bi-pencil me-1"></i>አርትዕ
   </a>
@@ -54,7 +54,15 @@
   <button onclick="window.print()" class="btn btn-sm btn-outline-secondary">
     <i class="bi bi-printer me-1"></i>አትም
   </button>
-  {% if user_can_edit %}
+  <a href="{% url 'official_letter_pdf' doc.pk %}" target="_blank" class="btn btn-sm btn-outline-dark">
+    <i class="bi bi-file-earmark-richtext me-1"></i>ደብዳቤ PDF
+  </a>
+  {% if user_can_create %}
+  <a href="{% url 'document_forward' doc.pk %}" class="btn btn-sm btn-outline-success">
+    <i class="bi bi-forward-fill me-1"></i>አስተላልፍ
+  </a>
+  {% endif %}
+  {% if user_is_admin %}
   <a href="{% url 'document_delete' doc.pk %}" class="btn btn-sm btn-outline-danger ms-auto">
     <i class="bi bi-trash me-1"></i>ሰርዝ
   </a>
@@ -194,8 +202,8 @@
   <!-- ── Right: Status + QR + Activity ── -->
   <div class="col-lg-4">
 
-    <!-- Quick status change -->
-    {% if user_can_edit %}
+    <!-- Quick status change — ADMIN only -->
+    {% if user_is_admin %}
     <div class="page-card p-4 mb-4 no-print">
       <h6 class="fw-bold mb-3" style="color:var(--brand);">
         <i class="bi bi-arrow-repeat me-2"></i>ሁኔታ ቀይር
@@ -284,9 +292,11 @@
 
 {% block extra_js %}
 <script>
-// AJAX status update
+// AJAX status update with feedback
 document.getElementById('statusForm')?.addEventListener('submit', function(e) {
   e.preventDefault();
+  const btn = this.querySelector('button[type="submit"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>በማዘመን ላይ...'; }
   fetch(this.action, {
     method:'POST', body:new FormData(this),
     headers:{'X-Requested-With':'XMLHttpRequest'}
@@ -295,10 +305,10 @@ document.getElementById('statusForm')?.addEventListener('submit', function(e) {
   .then(data => {
     if (data.success) {
       const msg = document.createElement('div');
-      msg.className = 'alert alert-success alert-dismissible fade show';
-      msg.innerHTML = `ሁኔታ ወደ "<strong>${data.new_status}</strong>" ተዘምኗል! <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
-      document.querySelector('.page-content').prepend(msg);
-      setTimeout(() => location.reload(), 1600);
+      msg.className = 'alert alert-success alert-dismissible fade show shadow-sm';
+      msg.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i>ሁኔታ ወደ "<strong>${data.new_status}</strong>" ተዘምኗል! <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+      document.querySelector('.main-content, #main').prepend(msg);
+      setTimeout(() => location.reload(), 1200);
     }
   }).catch(() => this.submit());
 });

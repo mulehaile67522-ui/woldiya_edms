@@ -1,0 +1,105 @@
+{% extends "documents/base.html" %}
+{% block title %}ደብዳቤ አስተላልፍ — ወልድያ EDMS{% endblock %}
+{% block page_title %}ደብዳቤ አስተላልፍ{% endblock %}
+{% block page_subtitle %}{{ doc.reference_number }} — {{ doc.title|truncatechars:40 }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+
+    <!-- Document info -->
+    <div class="page-card p-4 mb-4">
+      <div class="d-flex flex-wrap gap-2 mb-3">
+        <span class="eb eb-{{ doc.doc_type }}">{{ doc.get_doc_type_display }}</span>
+        <span class="eb eb-{{ doc.status }}">{{ doc.get_status_display }}</span>
+        <span class="eb eb-{{ doc.priority }}">{{ doc.get_priority_display }}</span>
+      </div>
+      <h6 class="fw-bold mb-1">{{ doc.title }}</h6>
+      <div class="text-muted small">
+        <code class="text-primary">{{ doc.reference_number }}</code> &nbsp;|&nbsp;
+        ከ: {{ doc.sender }} &nbsp;→&nbsp; ለ: {{ doc.receiver }}
+      </div>
+    </div>
+
+    <!-- Forward form -->
+    <div class="page-card p-4">
+      <h6 class="fw-bold mb-4" style="color:var(--brand);">
+        <i class="bi bi-forward-fill me-2"></i>ወደ ማን/ቢሮ ይላካ?
+      </h6>
+      <form method="post">
+        {% csrf_token %}
+
+        <div class="mb-3">
+          <label class="form-label">ተቀባይ ተጠቃሚ</label>
+          <select name="to_user" class="form-select">
+            <option value="">— ተጠቃሚ ይምረጡ (ወይም ቢሮ ያስገቡ) —</option>
+            {% for u in users %}
+            <option value="{{ u.pk }}">
+              {{ u.get_full_name|default:u.username }}
+              {% if u.profile.department %}({{ u.profile.department }}){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">ወደ ቢሮ (በስም)</label>
+          <input type="text" name="to_department" class="form-control"
+                 placeholder="ለምሳሌ: ጤና ቢሮ፣ ገቢ ቢሮ">
+          <div class="text-muted" style="font-size:.75rem;">
+            ተጠቃሚ ካልምረጡ ቢሮ ይጻፉ
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label">ማስታወሻ / መመሪያ</label>
+          <textarea name="note" class="form-control" rows="4"
+                    placeholder="ለምሳሌ: ለፈርማ ይላኩ፣ ፈጥነው ይፈጽሙ..."></textarea>
+        </div>
+
+        <div class="d-flex gap-3">
+          <button type="submit" class="btn btn-brand px-4 fw-bold">
+            <i class="bi bi-forward-fill me-2"></i>አስተላልፍ
+          </button>
+          <a href="{% url 'document_detail' doc.pk %}" class="btn btn-outline-secondary">
+            <i class="bi bi-x-lg me-1"></i>ሰርዝ
+          </a>
+        </div>
+      </form>
+    </div>
+
+    <!-- Forward history -->
+    {% with forwards=doc.forwards.all %}
+    {% if forwards %}
+    <div class="page-card p-4 mt-4">
+      <h6 class="fw-bold mb-3" style="color:var(--brand);">
+        <i class="bi bi-clock-history me-2"></i>የማስተላለፍ ታሪክ
+      </h6>
+      {% for fwd in forwards %}
+      <div class="d-flex gap-3 mb-3 pb-3 border-bottom">
+        <div class="flex-shrink-0 mt-1">
+          <i class="bi bi-arrow-right-circle-fill text-primary fs-5"></i>
+        </div>
+        <div>
+          <div class="fw-medium" style="font-size:.88rem;">
+            {{ fwd.from_user.get_full_name|default:fwd.from_user.username }}
+            <i class="bi bi-arrow-right mx-1"></i>
+            {{ fwd.to_user.get_full_name|default:fwd.to_department }}
+          </div>
+          {% if fwd.note %}
+          <div class="text-muted" style="font-size:.82rem;">{{ fwd.note }}</div>
+          {% endif %}
+          <div class="text-muted" style="font-size:.75rem;">
+            {{ fwd.forwarded_at|date:"d/m/Y H:i" }}
+            {% if fwd.is_read %}<span class="badge bg-success ms-1" style="font-size:.6rem;">ታይቷል</span>{% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+  </div>
+</div>
+{% endblock %}

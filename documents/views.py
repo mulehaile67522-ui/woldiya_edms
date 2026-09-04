@@ -795,3 +795,274 @@ def create_user_view(request):
         'role_choices': UserProfile.ROLE_CHOICES,
         'post': {},
     })
+
+
+# ──────────────────────────── DOCUMENT FORWARD ───────────────────────
+
+@login_required
+@registrar_required
+def document_forward(request, pk):
+    doc = get_object_or_404(Document, pk=pk)
+    users = User.objects.filter(is_active=True).exclude(pk=request.user.pk).select_related('profile')
+
+    if request.method == 'POST':
+        to_user_id   = request.POST.get('to_user')
+        to_department = request.POST.get('to_department', '').strip()
+        note         = request.POST.get('note', '').strip()
+
+        to_user = None
+        if to_user_id:
+            try:
+                to_user = User.objects.get(pk=to_user_id)
+            except User.DoesNotExist:
+                pass
+
+        from .models import DocumentForward
+        fwd = DocumentForward.objects.create(
+            document=doc,
+            from_user=request.user,
+            to_user=to_user,
+            to_department=to_department,
+            note=note,
+        )
+
+        # Log activity
+        dest = to_user.get_full_name() or to_user.username if to_user else to_department
+        log_activity(doc, request.user, 'ደብዳቤ ተላልፏል', f'ወደ {dest} ተላልፏል። {note}')
+
+        # Notify recipient
+        if to_user:
+            Notification.objects.create(
+                user=to_user,
+                message=f'ደብዳቤ "{doc.reference_number} — {doc.title}" ወደዎ ተላልፏል። ማስታወሻ: {note or "—"}',
+                link=f'/documents/{doc.pk}/',
+            )
+            # Send email if user has email
+            if to_user.email:
+                _send_forward_email(to_user, doc, request.user, note)
+
+        messages.success(request, f'ደብዳቤ ወደ "{dest}" ተላልፏል!')
+        return redirect('document_detail', pk=doc.pk)
+
+    return render(request, 'documents/document_forward.html', {
+        'doc': doc, 'users': users,
+    })
+
+
+def _send_forward_email(to_user, doc, from_user, note):
+    """Send email notification when a document is forwarded."""
+    try:
+        from django.core.mail import send_mail
+        subject = f'[EDMS] ደብዳቤ ተላልፏል — {doc.reference_number}'
+        message = f"""
+ሰላም {to_user.get_full_name() or to_user.username}،
+
+{from_user.get_full_name() or from_user.username} ደብዳቤ ወደዎ አስተላልፏል።
+
+ደብዳቤ: {doc.reference_number} — {doc.title}
+ላካ: {from_user.get_full_name() or from_user.username}
+ማስታወሻ: {note or '—'}
+
+ለማየት: https://muleedms.pythonanywhere.com/documents/{doc.pk}/
+
+ወልድያ ከተማ አስተዳደር — EDMS
+        """
+        send_mail(
+            subject, message,
+            settings.DEFAULT_FROM_EMAIL,
+            [to_user.email],
+            fail_silently=True,
+        )
+    except Exception:
+        pass
+
+
+# ──────────────────────────── INBOX (Forwarded to me) ────────────────
+
+@login_required
+def inbox(request):
+    from .models import DocumentForward
+    forwards = DocumentForward.objects.filter(
+        to_user=request.user
+    ).select_related('document', 'from_user').order_by('-forwarded_at')
+
+    unread = forwards.filter(is_read=False).count()
+
+    if request.GET.get('mark_read'):
+        forwards.filter(is_read=False).update(is_read=True)
+        return redirect('inbox')
+
+    return render(request, 'documents/inbox.html', {
+        'forwards': forwards,
+        'unread':   unread,
+    })
+
+
+@login_required
+@require_POST
+def mark_forward_read(request, pk):
+    from .models import DocumentForward
+    fwd = get_object_or_404(DocumentForward, pk=pk, to_user=request.user)
+    fwd.is_read = True
+    fwd.save(update_fields=['is_read'])
+    return redirect('document_detail', pk=fwd.document.pk)
+
+
+# ──────────────────────────── OFFICIAL LETTER PDF ────────────────────
+
+@login_required
+def official_letter_pdf(request, pk):
+    """Generate official Woldiya City Administration letter PDF."""
+    doc = get_object_or_404(Document, pk=pk)
+
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib import colors
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
+                                        Table, TableStyle, HRFlowable, Image)
+        from reportlab.lib.units import cm
+        from io import BytesIO
+
+        buf  = BytesIO()
+        page = SimpleDocTemplate(buf, pagesize=A4,
+                                  rightMargin=2.5*cm, leftMargin=2.5*cm,
+                                  topMargin=2*cm, bottomMargin=2*cm)
+
+        styles = getSampleStyleSheet()
+        brand  = colors.HexColor('#1B4F72')
+        gold   = colors.HexColor('#C8960C')
+        story  = []
+
+        # ── Header with logo ──
+        header_data = [[
+            Paragraph(
+                '<b>ወልድያ ከተማ አስተዳደር</b><br/>'
+                '<font size="10">WOLDIA CITY ADMINISTRATION</font><br/>'
+                '<font size="9" color="#1B4F72">ፈጠራ እና ቴክኖሎጂ ቡድን — EDMS</font>',
+                ParagraphStyle('org', fontSize=14, textColor=brand, leading=18)
+            ),
+            Paragraph(
+                f'<b>ቁጥር:</b> {doc.reference_number}<br/>'
+                f'<b>ቀን:</b> {doc.created_at.strftime("%d/%m/%Y")}<br/>'
+                f'<b>ዓይነት:</b> {doc.get_doc_type_display()}',
+                ParagraphStyle('ref', fontSize=10, textColor=colors.HexColor('#374151'), leading=15)
+            ),
+        ]]
+
+        # Try to add logo
+        logo_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'woldiya_logo.png')
+        if os.path.exists(logo_path):
+            try:
+                logo_img = Image(logo_path, width=2.5*cm, height=2.5*cm)
+                header_data[0].insert(0, logo_img)
+                col_widths = [2.8*cm, 10*cm, 4*cm]
+            except Exception:
+                col_widths = [12*cm, 4*cm]
+        else:
+            col_widths = [12*cm, 4*cm]
+
+        t = Table(header_data, colWidths=col_widths)
+        t.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('ALIGN',  (-1,0), (-1,-1), 'RIGHT'),
+        ]))
+        story.append(t)
+        story.append(HRFlowable(width='100%', color=gold, thickness=3, spaceAfter=16))
+
+        # ── Document type banner ──
+        type_style = ParagraphStyle('type', fontSize=14, fontName='Helvetica-Bold',
+                                     textColor=colors.white, backColor=brand,
+                                     alignment=1, spaceAfter=16, leading=20,
+                                     leftIndent=-20, rightIndent=-20)
+        story.append(Paragraph(f'  {doc.get_doc_type_display().upper()}  ', type_style))
+
+        # ── Recipients ──
+        recip_data = [
+            [Paragraph('<b>ለ:</b>', styles['Normal']),
+             Paragraph(doc.receiver, styles['Normal'])],
+            [Paragraph('<b>ከ:</b>', styles['Normal']),
+             Paragraph(doc.sender, styles['Normal'])],
+            [Paragraph('<b>ጉዳዩ:</b>', styles['Normal']),
+             Paragraph(f'<b>{doc.title}</b>', styles['Normal'])],
+        ]
+        if doc.due_date:
+            recip_data.append([
+                Paragraph('<b>የቀን ገደብ:</b>', styles['Normal']),
+                Paragraph(str(doc.due_date), styles['Normal']),
+            ])
+
+        t2 = Table(recip_data, colWidths=[3.5*cm, 12.5*cm])
+        t2.setStyle(TableStyle([
+            ('FONTSIZE',  (0,0), (-1,-1), 11),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+            ('TOPPADDING',    (0,0), (-1,-1), 6),
+            ('LINEBELOW', (0,0), (-1,-2), 0.5, colors.HexColor('#E2E8F0')),
+        ]))
+        story.append(t2)
+        story.append(Spacer(1, 16))
+        story.append(HRFlowable(width='100%', color=colors.HexColor('#E2E8F0'), thickness=1))
+        story.append(Spacer(1, 12))
+
+        # ── Body / Description ──
+        if doc.description:
+            story.append(Paragraph('<b>ዝርዝር ይዘት / ማብራሪያ:</b>',
+                                    ParagraphStyle('h', fontSize=11, fontName='Helvetica-Bold',
+                                                   textColor=brand, spaceAfter=8)))
+            story.append(Paragraph(doc.description.replace('\n', '<br/>'),
+                                    ParagraphStyle('body', fontSize=11, leading=18,
+                                                   spaceAfter=20)))
+
+        # ── Status & Priority ──
+        story.append(Spacer(1, 8))
+        status_data = [[
+            Paragraph(f'<b>ሁኔታ:</b> {doc.get_status_display()}', styles['Normal']),
+            Paragraph(f'<b>ቅድሚያ:</b> {doc.get_priority_display()}', styles['Normal']),
+            Paragraph(f'<b>ምድብ:</b> {doc.category or "—"}', styles['Normal']),
+        ]]
+        t3 = Table(status_data, colWidths=[5*cm, 5*cm, 6*cm])
+        t3.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F0F4F8')),
+            ('FONTSIZE', (0,0), (-1,-1), 10),
+            ('PADDING', (0,0), (-1,-1), 8),
+            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+        ]))
+        story.append(t3)
+        story.append(Spacer(1, 40))
+
+        # ── Signature area ──
+        sig_data = [[
+            Paragraph('___________________________<br/><font size="9">የሰነዱ አዘጋጅ ፊርማ</font>',
+                       ParagraphStyle('sig', fontSize=10, alignment=1, leading=14)),
+            Paragraph('___________________________<br/><font size="9">ኃላፊ ፊርማ</font>',
+                       ParagraphStyle('sig', fontSize=10, alignment=1, leading=14)),
+            Paragraph('___________________________<br/><font size="9">ቀን</font>',
+                       ParagraphStyle('sig', fontSize=10, alignment=1, leading=14)),
+        ]]
+        t4 = Table(sig_data, colWidths=[5.5*cm, 5.5*cm, 5*cm])
+        t4.setStyle(TableStyle([('TOPPADDING', (0,0), (-1,-1), 20)]))
+        story.append(t4)
+
+        # ── Footer ──
+        story.append(Spacer(1, 20))
+        story.append(HRFlowable(width='100%', color=gold, thickness=2))
+        story.append(Paragraph(
+            '<font size="8" color="#94A3B8">ወልድያ ከተማ አስተዳደር — ፈጠራ እና ቴክኖሎጂ ቡድን | EDMS | '
+            f'ህትመት ቀን: {timezone.localdate()} | ቁጥር: {doc.reference_number}</font>',
+            ParagraphStyle('footer', fontSize=8, alignment=1, spaceAfter=0, leading=12)
+        ))
+
+        page.build(story)
+        buf.seek(0)
+        response = HttpResponse(buf.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = (
+            f'inline; filename="letter_{doc.reference_number}.pdf"'
+        )
+        return response
+
+    except ImportError:
+        messages.error(request, 'reportlab አልተጫነም። pip install reportlab')
+        return redirect('document_detail', pk=pk)
+    except Exception as e:
+        messages.error(request, f'PDF ስህተት: {e}')
+        return redirect('document_detail', pk=pk)

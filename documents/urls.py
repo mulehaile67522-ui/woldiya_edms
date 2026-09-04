@@ -53,4 +53,10 @@ urlpatterns = [
 
     # User management
     path('users/create/', views.create_user_view, name='create_user'),
+
+    # Document Forwarding & Inbox
+    path('documents/<int:pk>/forward/',      views.document_forward,   name='document_forward'),
+    path('documents/<int:pk>/letter-pdf/',   views.official_letter_pdf, name='official_letter_pdf'),
+    path('inbox/',                           views.inbox,              name='inbox'),
+    path('inbox/<int:pk>/read/',             views.mark_forward_read,  name='mark_forward_read'),
 ]
