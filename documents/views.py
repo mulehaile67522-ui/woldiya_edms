@@ -922,7 +922,22 @@ def official_letter_pdf(request, pk):
         from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
                                         Table, TableStyle, HRFlowable, Image)
         from reportlab.lib.units import cm
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
         from io import BytesIO
+
+        # ── Register Ethiopic font ──
+        font_path = os.path.join(settings.BASE_DIR, 'static', 'fonts', 'ethiopic.ttf')
+        AM_FONT = 'Helvetica'  # fallback
+        AM_FONT_BOLD = 'Helvetica-Bold'
+        if os.path.exists(font_path):
+            try:
+                pdfmetrics.registerFont(TTFont('Ethiopic', font_path))
+                pdfmetrics.registerFont(TTFont('EthiopicBold', font_path))
+                AM_FONT = 'Ethiopic'
+                AM_FONT_BOLD = 'Ethiopic'
+            except Exception:
+                pass
 
         buf  = BytesIO()
         page = SimpleDocTemplate(buf, pagesize=A4,
@@ -937,9 +952,9 @@ def official_letter_pdf(request, pk):
         # ── Header with logo ──
         header_data = [[
             Paragraph(
-                '<b>ወልድያ ከተማ አስተዳደር</b><br/>'
-                '<font size="10">WOLDIA CITY ADMINISTRATION</font><br/>'
-                '<font size="9" color="#1B4F72">ፈጠራ እና ቴክኖሎጂ ቡድን — EDMS</font>',
+                f'<font name="{AM_FONT_BOLD}" size="14">ወልድያ ከተማ አስተዳደር</font><br/>'
+                '<font name="Helvetica" size="10">WOLDIA CITY ADMINISTRATION</font><br/>'
+                f'<font name="{AM_FONT}" size="9" color="#1B4F72">ፈጠራ እና ቴክኖሎጂ ቡድን — EDMS</font>',
                 ParagraphStyle('org', fontSize=14, textColor=brand, leading=18)
             ),
             Paragraph(
@@ -971,25 +986,24 @@ def official_letter_pdf(request, pk):
         story.append(HRFlowable(width='100%', color=gold, thickness=3, spaceAfter=16))
 
         # ── Document type banner ──
-        type_style = ParagraphStyle('type', fontSize=14, fontName='Helvetica-Bold',
+        type_style = ParagraphStyle('type', fontSize=14, fontName=AM_FONT_BOLD,
                                      textColor=colors.white, backColor=brand,
                                      alignment=1, spaceAfter=16, leading=20,
                                      leftIndent=-20, rightIndent=-20)
         story.append(Paragraph(f'  {doc.get_doc_type_display().upper()}  ', type_style))
 
         # ── Recipients ──
+        am_style = ParagraphStyle('am', fontName=AM_FONT, fontSize=11, leading=15)
+        am_bold  = ParagraphStyle('amb', fontName=AM_FONT_BOLD, fontSize=11, leading=15)
         recip_data = [
-            [Paragraph('<b>ለ:</b>', styles['Normal']),
-             Paragraph(doc.receiver, styles['Normal'])],
-            [Paragraph('<b>ከ:</b>', styles['Normal']),
-             Paragraph(doc.sender, styles['Normal'])],
-            [Paragraph('<b>ጉዳዩ:</b>', styles['Normal']),
-             Paragraph(f'<b>{doc.title}</b>', styles['Normal'])],
+            [Paragraph('ለ:', am_bold), Paragraph(doc.receiver, am_style)],
+            [Paragraph('ከ:', am_bold), Paragraph(doc.sender, am_style)],
+            [Paragraph('ጉዳዩ:', am_bold), Paragraph(doc.title, am_bold)],
         ]
         if doc.due_date:
             recip_data.append([
-                Paragraph('<b>የቀን ገደብ:</b>', styles['Normal']),
-                Paragraph(str(doc.due_date), styles['Normal']),
+                Paragraph('የቀን ገደብ:', am_bold),
+                Paragraph(str(doc.due_date), am_style),
             ])
 
         t2 = Table(recip_data, colWidths=[3.5*cm, 12.5*cm])
@@ -1006,8 +1020,8 @@ def official_letter_pdf(request, pk):
 
         # ── Body / Description ──
         if doc.description:
-            story.append(Paragraph('<b>ዝርዝር ይዘት / ማብራሪያ:</b>',
-                                    ParagraphStyle('h', fontSize=11, fontName='Helvetica-Bold',
+            story.append(Paragraph('ዝርዝር ይዘት / ማብራሪያ:',
+                                    ParagraphStyle('h', fontSize=11, fontName=AM_FONT_BOLD,
                                                    textColor=brand, spaceAfter=8)))
             story.append(Paragraph(doc.description.replace('\n', '<br/>'),
                                     ParagraphStyle('body', fontSize=11, leading=18,
@@ -1016,9 +1030,9 @@ def official_letter_pdf(request, pk):
         # ── Status & Priority ──
         story.append(Spacer(1, 8))
         status_data = [[
-            Paragraph(f'<b>ሁኔታ:</b> {doc.get_status_display()}', styles['Normal']),
-            Paragraph(f'<b>ቅድሚያ:</b> {doc.get_priority_display()}', styles['Normal']),
-            Paragraph(f'<b>ምድብ:</b> {doc.category or "—"}', styles['Normal']),
+            Paragraph(f'ሁኔታ: {doc.get_status_display()}', ParagraphStyle('s', fontName=AM_FONT, fontSize=10)),
+            Paragraph(f'ቅድሚያ: {doc.get_priority_display()}', ParagraphStyle('s2', fontName=AM_FONT, fontSize=10)),
+            Paragraph(f'ምድብ: {doc.category or "—"}', ParagraphStyle('s3', fontName=AM_FONT, fontSize=10)),
         ]]
         t3 = Table(status_data, colWidths=[5*cm, 5*cm, 6*cm])
         t3.setStyle(TableStyle([
