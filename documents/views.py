@@ -949,19 +949,21 @@ def official_letter_pdf(request, pk):
         gold   = colors.HexColor('#C8960C')
         story  = []
 
+        # Amharic paragraph styles using the registered font
+        am_normal = ParagraphStyle('am_normal', fontName=AM_FONT, fontSize=11, leading=16)
+        am_bold   = ParagraphStyle('am_bold',   fontName=AM_FONT_BOLD, fontSize=11, leading=16)
+        am_header = ParagraphStyle('am_header', fontName=AM_FONT_BOLD, fontSize=14, textColor=brand, leading=20)
+        am_small  = ParagraphStyle('am_small',  fontName=AM_FONT, fontSize=9, textColor=colors.HexColor('#1B4F72'), leading=13)
+        am_ref    = ParagraphStyle('am_ref',    fontName=AM_FONT, fontSize=10, textColor=colors.HexColor('#374151'), leading=15)
+
         # ── Header with logo ──
         header_data = [[
+            Paragraph('ወልድያ ከተማ አስተዳደር', am_header),
             Paragraph(
-                f'<font name="{AM_FONT_BOLD}" size="14">ወልድያ ከተማ አስተዳደር</font><br/>'
-                '<font name="Helvetica" size="10">WOLDIA CITY ADMINISTRATION</font><br/>'
-                f'<font name="{AM_FONT}" size="9" color="#1B4F72">ፈጠራ እና ቴክኖሎጂ ቡድን — EDMS</font>',
-                ParagraphStyle('org', fontSize=14, textColor=brand, leading=18)
-            ),
-            Paragraph(
-                f'<b>ቁጥር:</b> {doc.reference_number}<br/>'
-                f'<b>ቀን:</b> {doc.created_at.strftime("%d/%m/%Y")}<br/>'
-                f'<b>ዓይነት:</b> {doc.get_doc_type_display()}',
-                ParagraphStyle('ref', fontSize=10, textColor=colors.HexColor('#374151'), leading=15)
+                f'ቁጥር: {doc.reference_number}<br/>'
+                f'ቀን: {doc.created_at.strftime("%d/%m/%Y")}<br/>'
+                f'ዓይነት: {doc.get_doc_type_display()}',
+                am_ref
             ),
         ]]
 
@@ -990,20 +992,18 @@ def official_letter_pdf(request, pk):
                                      textColor=colors.white, backColor=brand,
                                      alignment=1, spaceAfter=16, leading=20,
                                      leftIndent=-20, rightIndent=-20)
-        story.append(Paragraph(f'  {doc.get_doc_type_display().upper()}  ', type_style))
+        story.append(Paragraph(doc.get_doc_type_display(), type_style))
 
         # ── Recipients ──
-        am_style = ParagraphStyle('am', fontName=AM_FONT, fontSize=11, leading=15)
-        am_bold  = ParagraphStyle('amb', fontName=AM_FONT_BOLD, fontSize=11, leading=15)
         recip_data = [
-            [Paragraph('ለ:', am_bold), Paragraph(doc.receiver, am_style)],
-            [Paragraph('ከ:', am_bold), Paragraph(doc.sender, am_style)],
+            [Paragraph('ለ:', am_bold), Paragraph(doc.receiver, am_normal)],
+            [Paragraph('ከ:', am_bold), Paragraph(doc.sender, am_normal)],
             [Paragraph('ጉዳዩ:', am_bold), Paragraph(doc.title, am_bold)],
         ]
         if doc.due_date:
             recip_data.append([
                 Paragraph('የቀን ገደብ:', am_bold),
-                Paragraph(str(doc.due_date), am_style),
+                Paragraph(str(doc.due_date), am_normal),
             ])
 
         t2 = Table(recip_data, colWidths=[3.5*cm, 12.5*cm])
@@ -1024,13 +1024,13 @@ def official_letter_pdf(request, pk):
                                     ParagraphStyle('h', fontSize=11, fontName=AM_FONT_BOLD,
                                                    textColor=brand, spaceAfter=8)))
             story.append(Paragraph(doc.description.replace('\n', '<br/>'),
-                                    ParagraphStyle('body', fontSize=11, leading=18,
-                                                   spaceAfter=20)))
+                                    ParagraphStyle('body', fontName=AM_FONT, fontSize=11,
+                                                   leading=18, spaceAfter=20)))
 
         # ── Status & Priority ──
         story.append(Spacer(1, 8))
         status_data = [[
-            Paragraph(f'ሁኔታ: {doc.get_status_display()}', ParagraphStyle('s', fontName=AM_FONT, fontSize=10)),
+            Paragraph(f'ሁኔታ: {doc.get_status_display()}', ParagraphStyle('s1', fontName=AM_FONT, fontSize=10)),
             Paragraph(f'ቅድሚያ: {doc.get_priority_display()}', ParagraphStyle('s2', fontName=AM_FONT, fontSize=10)),
             Paragraph(f'ምድብ: {doc.category or "—"}', ParagraphStyle('s3', fontName=AM_FONT, fontSize=10)),
         ]]
@@ -1046,12 +1046,12 @@ def official_letter_pdf(request, pk):
 
         # ── Signature area ──
         sig_data = [[
-            Paragraph('___________________________<br/><font size="9">የሰነዱ አዘጋጅ ፊርማ</font>',
-                       ParagraphStyle('sig', fontSize=10, alignment=1, leading=14)),
-            Paragraph('___________________________<br/><font size="9">ኃላፊ ፊርማ</font>',
-                       ParagraphStyle('sig', fontSize=10, alignment=1, leading=14)),
-            Paragraph('___________________________<br/><font size="9">ቀን</font>',
-                       ParagraphStyle('sig', fontSize=10, alignment=1, leading=14)),
+            Paragraph('___________________________\nየሰነዱ አዘጋጅ ፊርማ',
+                       ParagraphStyle('sig', fontName=AM_FONT, fontSize=10, alignment=1, leading=14)),
+            Paragraph('___________________________\nኃላፊ ፊርማ',
+                       ParagraphStyle('sig2', fontName=AM_FONT, fontSize=10, alignment=1, leading=14)),
+            Paragraph('___________________________\nቀን',
+                       ParagraphStyle('sig3', fontName=AM_FONT, fontSize=10, alignment=1, leading=14)),
         ]]
         t4 = Table(sig_data, colWidths=[5.5*cm, 5.5*cm, 5*cm])
         t4.setStyle(TableStyle([('TOPPADDING', (0,0), (-1,-1), 20)]))
@@ -1061,9 +1061,9 @@ def official_letter_pdf(request, pk):
         story.append(Spacer(1, 20))
         story.append(HRFlowable(width='100%', color=gold, thickness=2))
         story.append(Paragraph(
-            '<font size="8" color="#94A3B8">ወልድያ ከተማ አስተዳደር — ፈጠራ እና ቴክኖሎጂ ቡድን | EDMS | '
-            f'ህትመት ቀን: {timezone.localdate()} | ቁጥር: {doc.reference_number}</font>',
-            ParagraphStyle('footer', fontSize=8, alignment=1, spaceAfter=0, leading=12)
+            f'ወልድያ ከተማ አስተዳደር — ፈጠራ እና ቴክኖሎጂ ቡድን | EDMS | '
+            f'ህትመት ቀን: {timezone.localdate()} | ቁጥር: {doc.reference_number}',
+            ParagraphStyle('footer', fontName=AM_FONT, fontSize=8, alignment=1, spaceAfter=0, leading=12)
         ))
 
         page.build(story)
