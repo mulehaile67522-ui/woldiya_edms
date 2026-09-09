@@ -529,11 +529,23 @@ def _export_pdf_report(docs, by_type, by_status, by_priority, monthly, today):
     gold   = colors.HexColor('#C8960C')
     story  = []
 
+    # ── Register Ethiopic font ──
+    AM_FONT = 'Helvetica'
+    AM_BOLD = 'Helvetica-Bold'
+    font_path = os.path.join(settings.BASE_DIR, 'static', 'fonts', 'ethiopic.ttf')
+    if os.path.exists(font_path):
+        try:
+            pdfmetrics.registerFont(TTFont('Ethiopic', font_path))
+            AM_FONT = 'Ethiopic'
+            AM_BOLD = 'Ethiopic'
+        except Exception:
+            pass
+
     # Title
-    title_style = ParagraphStyle('Title', parent=styles['Heading1'],
+    title_style = ParagraphStyle('Title', fontName=AM_BOLD,
                                   textColor=brand, fontSize=18, spaceAfter=6)
     story.append(Paragraph('ወልድያ ከተማ አስተዳደር — EDMS ሪፖርት', title_style))
-    story.append(Paragraph(f'ዛሬ: {today}', styles['Normal']))
+    story.append(Paragraph(f'ዛሬ: {today}', ParagraphStyle('date', fontName=AM_FONT, fontSize=11, spaceAfter=6)))
     story.append(HRFlowable(width='100%', color=gold, thickness=2, spaceAfter=12))
 
     # Summary table
@@ -548,7 +560,8 @@ def _export_pdf_report(docs, by_type, by_status, by_priority, monthly, today):
     t.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), brand),
         ('TEXTCOLOR',  (0, 0), (-1, 0), colors.white),
-        ('FONTNAME',   (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME',   (0, 0), (-1, 0), AM_BOLD),
+        ('FONTNAME',   (0, 1), (-1, -1), AM_FONT),
         ('ALIGN',      (1, 0), (1, -1), 'CENTER'),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F0F4F8')]),
         ('GRID',       (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
@@ -559,7 +572,7 @@ def _export_pdf_report(docs, by_type, by_status, by_priority, monthly, today):
     story.append(Spacer(1, 16))
 
     # Monthly table
-    story.append(Paragraph('ወርሃዊ ምዝገባ', styles['Heading2']))
+    story.append(Paragraph('ወርሃዊ ምዝገባ', ParagraphStyle('h2', fontName=AM_BOLD, fontSize=14, textColor=brand, spaceAfter=8)))
     month_data = [['ወር', 'ደብዳቤ']]
     for row in monthly:
         month_data.append([row['label'], str(row['count'])])
@@ -567,7 +580,8 @@ def _export_pdf_report(docs, by_type, by_status, by_priority, monthly, today):
     t2.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), brand),
         ('TEXTCOLOR',  (0, 0), (-1, 0), colors.white),
-        ('FONTNAME',   (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME',   (0, 0), (-1, 0), AM_BOLD),
+        ('FONTNAME',   (0, 1), (-1, -1), AM_FONT),
         ('ALIGN',      (1, 0), (1, -1), 'CENTER'),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F0F4F8')]),
         ('GRID',       (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
