@@ -1,19 +1,10 @@
 from pathlib import Path
 import os
-from decouple import config, Csv
-from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-DEBUG = config('DEBUG', default=True, cast=bool)
-SECRET_KEY = config('SECRET_KEY', default='')
-if not SECRET_KEY:
-    if DEBUG:
-        SECRET_KEY = 'django-insecure-local-development-only'
-    else:
-        raise ImproperlyConfigured('SECRET_KEY must be set when DEBUG=False')
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,.onrender.com,.up.railway.app,woldiya-edms.onrender.com', cast=Csv())
-CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='https://woldiya-edms.onrender.com,https://*.onrender.com,https://*.up.railway.app,http://localhost:8000,http://127.0.0.1:8000', cast=Csv())
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-woldiya-2026-change-in-production')
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -65,7 +56,7 @@ else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME':    BASE_DIR / 'db.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
 
@@ -76,55 +67,26 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-LOGIN_URL           = '/login/'
-LOGIN_REDIRECT_URL  = '/'
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
 
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE     = 'Africa/Addis_Ababa'
-USE_I18N      = True
-USE_TZ        = True
+TIME_ZONE = 'Africa/Addis_Ababa'
+USE_I18N = True
+USE_TZ = True
 
-STATIC_URL       = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
-STATIC_ROOT      = BASE_DIR / 'staticfiles'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
+STATICFILES_STORAGE = 'whitenoise.storage.StaticFilesStorage'
 
-CLOUDINARY_CLOUD_NAME = config('CLOUDINARY_CLOUD_NAME', default='')
-CLOUDINARY_API_KEY = config('CLOUDINARY_API_KEY', default='')
-CLOUDINARY_API_SECRET = config('CLOUDINARY_API_SECRET', default='')
-if CLOUDINARY_CLOUD_NAME:
-    import cloudinary
-    cloudinary.config(
-        cloud_name=CLOUDINARY_CLOUD_NAME,
-        api_key=CLOUDINARY_API_KEY,
-        api_secret=CLOUDINARY_API_SECRET
-    )
-
-STORAGES = {
-    'default': {
-        'BACKEND': 'cloudinary_storage.storage.MediaCloudinaryStorage'
-        if CLOUDINARY_CLOUD_NAME else 'django.core.files.storage.FileSystemStorage'
-    },
-    'staticfiles': {
-        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-        if not DEBUG else 'django.contrib.staticfiles.storage.StaticFilesStorage'
-    },
-}
-
-MEDIA_URL  = '/media/'
+MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-SECURE_SSL_REDIRECT = not DEBUG
-SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SECURE = not DEBUG
-SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
-SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
-SECURE_HSTS_PRELOAD = not DEBUG
-
-DEFAULT_AUTO_FIELD          = 'django.db.models.BigAutoField'
-DATA_UPLOAD_MAX_MEMORY_SIZE  = 20 * 1024 * 1024
-FILE_UPLOAD_MAX_MEMORY_SIZE  = 20 * 1024 * 1024
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
 
 from django.contrib.messages import constants as mc
 MESSAGE_TAGS = {
@@ -135,12 +97,11 @@ MESSAGE_TAGS = {
     mc.ERROR:   'danger',
 }
 
-
-# ── Email Configuration ───────────────────────────────────────────────
-EMAIL_BACKEND    = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
-EMAIL_HOST       = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
-EMAIL_PORT       = int(os.environ.get('EMAIL_PORT', 587))
-EMAIL_USE_TLS    = True
-EMAIL_HOST_USER  = os.environ.get('EMAIL_HOST_USER', '')
+CSRF_TRUSTED_ORIGINS = ['https://*.pythonanywhere.com', 'https://*.railway.app']
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'EDMS Woldiya <noreply@woldiya.gov.et>')
