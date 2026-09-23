@@ -1,0 +1,166 @@
+{% extends "documents/base.html" %}
+{% block title %}አቅም ግንባታ — ወልድያ EDMS{% endblock %}
+{% block page_title %}አቅም ግንባታ{% endblock %}
+{% block page_subtitle %}ፈጠራ ፕሮጀክቶች እና ሥልጠናዎች{% endblock %}
+
+{% block extra_css %}
+<style>
+  .proj-card {
+    border-radius: 14px; border: 1px solid #e2e8f0;
+    background: #fff; padding: 22px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.06);
+    transition: transform .18s, box-shadow .18s;
+    height: 100%;
+  }
+  .proj-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+  .proj-status { font-size:.72rem; font-weight:700; padding:3px 10px; border-radius:20px; }
+  .ps-PLANNING   { background:#e0f2fe; color:#0277bd; }
+  .ps-ACTIVE     { background:#e8f5e9; color:#1b5e20; }
+  .ps-COMPLETED  { background:#ede7f6; color:#4527a0; }
+  .ps-ON_HOLD    { background:#fce4ec; color:#880e4f; }
+  .training-row:hover td { background: #f8faff; }
+  .section-divider {
+    display: flex; align-items: center; gap: 12px;
+    margin: 32px 0 20px;
+  }
+  .section-divider h5 {
+    white-space: nowrap; margin: 0;
+    font-weight: 800; color: var(--brand); font-size: 1.05rem;
+  }
+  .section-divider .line {
+    flex: 1; height: 2px;
+    background: linear-gradient(to right, var(--brand-gold), transparent);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Innovation Projects ── -->
+<div class="section-divider">
+  <h5><i class="bi bi-lightbulb-fill me-2" style="color:var(--brand-gold);"></i>የፈጠራ ፕሮጀክቶች</h5>
+  <div class="line"></div>
+  {% if request.user.is_staff %}
+  <a href="/admin/documents/innovationproject/add/" class="btn btn-gold btn-sm no-print">
+    <i class="bi bi-plus-lg me-1"></i>አዲስ ፕሮጀክት
+  </a>
+  {% endif %}
+</div>
+
+{% if projects %}
+<div class="row g-4 mb-4">
+  {% for proj in projects %}
+  <div class="col-sm-6 col-lg-4">
+    <div class="proj-card">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <span class="proj-status ps-{{ proj.status }}">{{ proj.get_status_display }}</span>
+        <span class="text-muted" style="font-size:.75rem;">{{ proj.created_at|date:"d/m/Y" }}</span>
+      </div>
+      <h6 class="fw-bold mb-2" style="color:var(--brand);">{{ proj.title }}</h6>
+      <p class="text-muted mb-3" style="font-size:.85rem; line-height:1.5;">
+        {{ proj.description|truncatechars:120 }}
+      </p>
+      <div class="d-flex justify-content-between align-items-center border-top pt-3 mt-auto flex-wrap gap-2">
+        <div style="font-size:.8rem;" class="text-muted">
+          {% if proj.lead %}
+          <i class="bi bi-person-badge me-1"></i>
+          {{ proj.lead.get_full_name|default:proj.lead.username }}
+          {% else %}
+          <i class="bi bi-person me-1"></i><span class="text-muted">ኃላፊ አልተመደበም</span>
+          {% endif %}
+        </div>
+        <div style="font-size:.78rem;" class="text-muted d-flex gap-2">
+          {% if proj.start_date %}
+          <span><i class="bi bi-calendar-check me-1"></i>{{ proj.start_date }}</span>
+          {% endif %}
+          {% if proj.end_date %}
+          <span><i class="bi bi-calendar-x me-1"></i>{{ proj.end_date }}</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="page-card p-5 text-center mb-5">
+  <i class="bi bi-lightbulb fs-1 d-block mb-3 opacity-25 text-warning"></i>
+  <div class="fw-semibold text-muted mb-2">ምንም ፕሮጀክት አልተፈጠረም</div>
+  {% if request.user.is_staff %}
+  <a href="/admin/documents/innovationproject/add/" class="btn btn-gold btn-sm mt-2">
+    <i class="bi bi-plus-lg me-1"></i>ፕሮጀክት ፍጠር
+  </a>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- ── Trainings ── -->
+<div class="section-divider">
+  <h5><i class="bi bi-mortarboard-fill me-2" style="color:var(--brand);"></i>ሥልጠናዎች</h5>
+  <div class="line"></div>
+  {% if request.user.is_staff %}
+  <a href="/admin/documents/training/add/" class="btn btn-brand btn-sm no-print">
+    <i class="bi bi-plus-lg me-1"></i>አዲስ ሥልጠና
+  </a>
+  {% endif %}
+</div>
+
+{% if trainings %}
+<div class="page-card">
+  <div class="table-responsive">
+    <table class="edms-table">
+      <thead>
+        <tr>
+          <th>ርዕስ</th>
+          <th style="width:130px;">አሠልጣኝ</th>
+          <th style="width:110px;">ቀን</th>
+          <th style="width:80px;">ቀናት</th>
+          <th style="width:130px;">ተሳታፊዎች</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for tr in trainings %}
+        <tr class="training-row">
+          <td>
+            <div class="fw-semibold" style="font-size:.92rem;">{{ tr.title }}</div>
+            {% if tr.description %}
+            <div class="text-muted" style="font-size:.78rem;">{{ tr.description|truncatechars:80 }}</div>
+            {% endif %}
+          </td>
+          <td class="text-muted" style="font-size:.85rem;">
+            {{ tr.trainer|default:"—" }}
+          </td>
+          <td style="font-size:.85rem; white-space:nowrap;">
+            <i class="bi bi-calendar3 me-1 text-muted"></i>{{ tr.date }}
+          </td>
+          <td>
+            <span class="eb eb-INTERNAL">{{ tr.duration }} ቀን</span>
+          </td>
+          <td>
+            {% with count=tr.participants.count %}
+            {% if count %}
+            <span class="eb eb-INCOMING">{{ count }} ሰው</span>
+            {% else %}
+            <span class="text-muted small">—</span>
+            {% endif %}
+            {% endwith %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="page-card p-5 text-center">
+  <i class="bi bi-mortarboard fs-1 d-block mb-3 opacity-25 text-primary"></i>
+  <div class="fw-semibold text-muted mb-2">ምንም ሥልጠና አልተፈጠረም</div>
+  {% if request.user.is_staff %}
+  <a href="/admin/documents/training/add/" class="btn btn-brand btn-sm mt-2">
+    <i class="bi bi-plus-lg me-1"></i>ሥልጠና ፍጠር
+  </a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

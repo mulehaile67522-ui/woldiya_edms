@@ -1,0 +1,108 @@
+{% extends "documents/base.html" %}
+{% block title %}የእኔ ደብዳቤዎች — ወልድያ EDMS{% endblock %}
+{% block page_title %}የእኔ ደብዳቤዎች{% endblock %}
+{% block page_subtitle %}{{ assigned_count }} የተመደቡ · {{ created_count }} የተመዘገቡ{% endblock %}
+
+{% block content %}
+
+<!-- Status filter -->
+<div class="d-flex gap-2 mb-4 flex-wrap no-print">
+  <a href="{% url 'my_documents' %}" class="btn btn-sm {% if not status_filter %}btn-brand{% else %}btn-outline-secondary{% endif %}">
+    ሁሉም
+  </a>
+  {% for val, label in status_choices %}
+  <a href="?status={{ val }}" class="btn btn-sm {% if status_filter == val %}btn-brand{% else %}btn-outline-secondary{% endif %}">
+    {{ label }}
+  </a>
+  {% endfor %}
+</div>
+
+<div class="row g-4">
+
+  <!-- Assigned to me -->
+  <div class="col-lg-6">
+    <div class="page-card">
+      <div class="card-head">
+        <h6><i class="bi bi-person-badge me-2"></i>የተመደቡልኝ ደብዳቤዎች
+          <span class="badge ms-2" style="background:var(--brand);font-size:.7rem;">{{ assigned_count }}</span>
+        </h6>
+      </div>
+      <div class="table-responsive">
+        <table class="edms-table">
+          <thead><tr><th>ቁጥር</th><th>ርዕስ</th><th>ሁኔታ</th><th>ቅድሚያ</th><th>የቀን ገደብ</th></tr></thead>
+          <tbody>
+            {% for doc in assigned %}
+            <tr>
+              <td>
+                <a href="{% url 'document_detail' doc.pk %}" class="text-decoration-none">
+                  <code class="text-primary fw-bold" style="font-size:.8rem;">{{ doc.reference_number }}</code>
+                </a>
+              </td>
+              <td style="max-width:160px;" class="text-truncate" title="{{ doc.title }}">
+                {{ doc.title|truncatechars:30 }}
+              </td>
+              <td><span class="eb eb-{{ doc.status }}">{{ doc.get_status_display }}</span></td>
+              <td><span class="eb eb-{{ doc.priority }}">{{ doc.get_priority_display }}</span></td>
+              <td>
+                {% if doc.due_date %}
+                  {% if doc.due_date < today %}
+                    <span class="text-danger fw-bold" style="font-size:.78rem;">
+                      <i class="bi bi-alarm-fill me-1"></i>{{ doc.due_date }}
+                    </span>
+                  {% else %}
+                    <span class="text-muted" style="font-size:.78rem;">{{ doc.due_date }}</span>
+                  {% endif %}
+                {% else %}—{% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-4">
+              <i class="bi bi-person-check fs-3 d-block mb-2 opacity-25"></i>
+              ምንም ደብዳቤ አልተመደበም
+            </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Created by me -->
+  <div class="col-lg-6">
+    <div class="page-card">
+      <div class="card-head">
+        <h6><i class="bi bi-file-earmark-plus me-2"></i>የተመዘገቡ ደብዳቤዎቼ
+          <span class="badge ms-2" style="background:var(--brand-gold);font-size:.7rem;">{{ created_count }}</span>
+        </h6>
+      </div>
+      <div class="table-responsive">
+        <table class="edms-table">
+          <thead><tr><th>ቁጥር</th><th>ርዕስ</th><th>ሁኔታ</th><th>ቀን</th></tr></thead>
+          <tbody>
+            {% for doc in created %}
+            <tr>
+              <td>
+                <a href="{% url 'document_detail' doc.pk %}" class="text-decoration-none">
+                  <code class="text-primary fw-bold" style="font-size:.8rem;">{{ doc.reference_number }}</code>
+                </a>
+              </td>
+              <td style="max-width:200px;" class="text-truncate" title="{{ doc.title }}">
+                {{ doc.title|truncatechars:35 }}
+              </td>
+              <td><span class="eb eb-{{ doc.status }}">{{ doc.get_status_display }}</span></td>
+              <td class="text-muted" style="font-size:.8rem;">{{ doc.created_at|date:"d/m/Y" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-center text-muted py-4">
+              <i class="bi bi-file-earmark fs-3 d-block mb-2 opacity-25"></i>
+              ምንም ደብዳቤ አልተመዘገበም
+            </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

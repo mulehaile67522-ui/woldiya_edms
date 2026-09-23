@@ -1,0 +1,184 @@
+{% extends "documents/base.html" %}
+{% block title %}ሪፖርት — ወልድያ EDMS{% endblock %}
+{% block page_title %}ሪፖርት እና ስታቲስቲክስ{% endblock %}
+{% block page_subtitle %}ዛሬ: {{ today }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .stat-box { flex:1; min-width:110px; background:#f8faff; border:1px solid #e2e8f0; border-radius:10px; padding:14px; text-align:center; }
+  .stat-box .val { font-size:1.7rem; font-weight:800; color:var(--brand); }
+  .stat-box .lbl { font-size:.75rem; color:#64748b; margin-top:2px; }
+  .stat-row { display:flex; gap:.75rem; flex-wrap:wrap; }
+  .export-bar { background:linear-gradient(135deg,var(--brand),var(--brand-dark)); border-radius:12px; padding:20px 24px; color:#fff; display:flex; align-items:center; flex-wrap:wrap; gap:12px; }
+  .export-bar h6 { margin:0; font-size:1rem; }
+  .export-bar small { opacity:.75; font-size:.78rem; }
+  @media print {
+    .no-print { display:none !important; }
+    body { background:#fff; }
+    .page-card { box-shadow:none; border:1px solid #ddd; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Export bar -->
+<div class="export-bar mb-4 no-print">
+  <div class="flex-grow-1">
+    <h6><i class="bi bi-file-earmark-bar-graph me-2"></i>ሪፖርት ወደ ስርዓት አውጣ</h6>
+    <small>ሁሉም ደብዳቤዎች፣ ወርሃዊ ምዝገባ እና ስታቲስቲክስ ተካትቷል</small>
+  </div>
+  <a href="?export=excel" class="btn btn-sm" style="background:#1d6f42;color:#fff;font-weight:600;">
+    <i class="bi bi-file-earmark-excel me-1"></i>Excel ወርድ (.xlsx)
+  </a>
+  <a href="?export=pdf" class="btn btn-sm" style="background:#c0392b;color:#fff;font-weight:600;">
+    <i class="bi bi-file-earmark-pdf me-1"></i>PDF ወርድ
+  </a>
+  <a href="{% url 'document_list' %}?export=csv" class="btn btn-sm btn-outline-light">
+    <i class="bi bi-filetype-csv me-1"></i>CSV
+  </a>
+  <button onclick="window.print()" class="btn btn-sm btn-outline-light">
+    <i class="bi bi-printer me-1"></i>አትም
+  </button>
+</div>
+
+<!-- Summary -->
+<div class="page-card p-4 mb-4">
+  <h6 class="fw-bold mb-3" style="color:var(--brand);border-bottom:2px solid var(--brand);padding-bottom:6px;">
+    <i class="bi bi-clipboard-data me-2"></i>ጠቅላላ ማጠቃለያ
+  </h6>
+  <div class="stat-row">
+    <div class="stat-box"><div class="val">{{ total }}</div><div class="lbl">ጠቅላላ ደብዳቤ</div></div>
+    {% for key, val in by_type.items %}
+    <div class="stat-box"><div class="val">{{ val }}</div><div class="lbl">{{ key }}</div></div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Status + Priority -->
+<div class="row g-4 mb-4">
+  <div class="col-md-6">
+    <div class="page-card p-4 h-100">
+      <h6 class="fw-bold mb-3" style="color:var(--brand);border-bottom:2px solid var(--brand);padding-bottom:6px;">
+        <i class="bi bi-activity me-2"></i>በሁኔታ
+      </h6>
+      <div class="stat-row mb-3">
+        {% for key, val in by_status.items %}
+        <div class="stat-box"><div class="val">{{ val }}</div><div class="lbl">{{ key }}</div></div>
+        {% endfor %}
+      </div>
+      <canvas id="statusChart" height="160"></canvas>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="page-card p-4 h-100">
+      <h6 class="fw-bold mb-3" style="color:var(--brand);border-bottom:2px solid var(--brand);padding-bottom:6px;">
+        <i class="bi bi-lightning me-2"></i>በቅድሚያ
+      </h6>
+      <div class="stat-row mb-3">
+        {% for key, val in by_priority.items %}
+        <div class="stat-box"><div class="val">{{ val }}</div><div class="lbl">{{ key }}</div></div>
+        {% endfor %}
+      </div>
+      <canvas id="priorityChart" height="160"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- By Category -->
+<div class="page-card p-4 mb-4">
+  <h6 class="fw-bold mb-3" style="color:var(--brand);border-bottom:2px solid var(--brand);padding-bottom:6px;">
+    <i class="bi bi-tags me-2"></i>በምድብ
+  </h6>
+  {% if by_category %}
+  <table class="edms-table">
+    <thead><tr><th>ምድብ</th><th style="width:100px;">ብዛት</th><th>ፐርሰንት</th></tr></thead>
+    <tbody>
+      {% for cat in by_category %}
+      <tr>
+        <td>{{ cat }}</td>
+        <td><strong>{{ cat.cnt }}</strong></td>
+        <td>
+          <div class="d-flex align-items-center gap-2">
+            <div class="progress flex-grow-1" style="height:8px;">
+              <div class="progress-bar" style="width:{% if total %}{% widthratio cat.cnt total 100 %}{% else %}0{% endif %}%;background:var(--brand);"></div>
+            </div>
+            <span class="text-muted" style="font-size:.75rem;width:36px;">
+              {% if total %}{% widthratio cat.cnt total 100 %}%{% else %}0%{% endif %}
+            </span>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-muted small">ምድቦች አልተፈጠሩም።</p>
+  {% endif %}
+</div>
+
+<!-- Monthly trend -->
+<div class="page-card p-4">
+  <h6 class="fw-bold mb-3" style="color:var(--brand);border-bottom:2px solid var(--brand);padding-bottom:6px;">
+    <i class="bi bi-graph-up me-2"></i>ወርሃዊ ምዝገባ — ባለፉት 12 ወራት
+  </h6>
+  <canvas id="monthlyChart" height="80" class="mb-4"></canvas>
+  <table class="edms-table">
+    <thead><tr><th>ወር</th><th style="width:100px;">ብዛት</th><th>ምሳሌ</th></tr></thead>
+    <tbody>
+      {% for row in monthly %}
+      <tr>
+        <td>{{ row.label }}</td>
+        <td><strong>{{ row.count }}</strong></td>
+        <td>
+          <div class="progress" style="height:8px;max-width:200px;">
+            {% with max_month=monthly|dictsortreversed:"count"|first %}
+            <div class="progress-bar" style="width:{% if max_month.count %}{% widthratio row.count max_month.count 100 %}{% else %}0{% endif %}%;background:var(--brand-gold);"></div>
+            {% endwith %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+const monthLabels = {{ monthly|safe|default:"[]" }};
+// Build arrays from monthly dicts
+const mLabels = [{% for r in monthly %}"{{ r.label }}",{% endfor %}];
+const mData   = [{% for r in monthly %}{{ r.count }},{% endfor %}];
+
+new Chart(document.getElementById('monthlyChart'), {
+  type: 'bar',
+  data: { labels: mLabels,
+    datasets:[{ label:'ደብዳቤዎች', data:mData,
+      backgroundColor:'rgba(27,79,114,.72)', borderColor:'#1b4f72',
+      borderWidth:1, borderRadius:5 }] },
+  options:{ responsive:true, plugins:{legend:{display:false}},
+    scales:{ y:{beginAtZero:true,ticks:{precision:0}}, x:{grid:{display:false}} } }
+});
+
+new Chart(document.getElementById('statusChart'), {
+  type:'doughnut',
+  data:{ labels:[{% for k,v in by_status.items %}"{{ k }}",{% endfor %}],
+    datasets:[{ data:[{% for k,v in by_status.items %}{{ v }},{% endfor %}],
+      backgroundColor:['#e65100','#1976d2','#2e7d32','#546e7a'], borderWidth:3, borderColor:'#fff' }] },
+  options:{ responsive:true, cutout:'60%',
+    plugins:{legend:{position:'bottom',labels:{padding:10,font:{size:11}}}} }
+});
+
+new Chart(document.getElementById('priorityChart'), {
+  type:'doughnut',
+  data:{ labels:[{% for k,v in by_priority.items %}"{{ k }}",{% endfor %}],
+    datasets:[{ data:[{% for k,v in by_priority.items %}{{ v }},{% endfor %}],
+      backgroundColor:['#388e3c','#0277bd','#ef6c00','#c62828'], borderWidth:3, borderColor:'#fff' }] },
+  options:{ responsive:true, cutout:'60%',
+    plugins:{legend:{position:'bottom',labels:{padding:10,font:{size:11}}}} }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,246 @@
+{% extends "documents/base.html" %}
+{% block title %}{{ action }} ደብዳቤ — ወልድያ EDMS{% endblock %}
+{% block page_title %}{{ action }} ደብዳቤ{% endblock %}
+{% block page_subtitle %}{% if doc %}{{ doc.reference_number }}{% else %}አዲስ ምዝገባ{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .form-section {
+    background: #fff; border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    padding: 24px 26px; margin-bottom: 20px;
+  }
+  .form-section-title {
+    font-size: .82rem; font-weight: 700; letter-spacing: .8px;
+    text-transform: uppercase; color: var(--brand);
+    border-bottom: 2px solid #f1f5f9;
+    padding-bottom: 10px; margin-bottom: 20px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .ref-spinner { display:none; }
+  .field-hint { font-size:.75rem; color:#94a3b8; margin-top:3px; }
+  .required-star { color:#dc2626; }
+  .char-counter { font-size:.72rem; color:#94a3b8; float:right; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<form method="post" enctype="multipart/form-data" id="docForm" novalidate>
+  {% csrf_token %}
+
+  <!-- Error summary -->
+  {% if form.errors %}
+  <div class="alert alert-danger mb-4">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+    <strong>ስህተቶች ተገኝተዋል — እባክዎ ያስተካክሉ:</strong>
+    <ul class="mb-0 mt-2 ps-3">
+      {% for field in form %}{% for error in field.errors %}
+      <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+      {% endfor %}{% endfor %}
+      {% for error in form.non_field_errors %}
+      <li>{{ error }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <div class="row g-4">
+    <div class="col-lg-8">
+
+      <!-- Section 1: Basic Info -->
+      <div class="form-section">
+        <div class="form-section-title">
+          <i class="bi bi-file-earmark-text"></i> መሠረታዊ መረጃ
+        </div>
+        <div class="mb-4">
+          <label class="form-label">የደብዳቤው ርዕስ <span class="required-star">*</span></label>
+          {{ form.title }}
+          {% if form.title.errors %}<div class="text-danger small mt-1">{{ form.title.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="row g-3 mb-4">
+          <div class="col-sm-6">
+            <label class="form-label">
+              ዓይነት <span class="required-star">*</span>
+            </label>
+            {{ form.doc_type }}
+            {% if form.doc_type.errors %}<div class="text-danger small mt-1">{{ form.doc_type.errors.0 }}</div>{% endif %}
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">
+              የደብዳቤ ቁጥር <span class="required-star">*</span>
+              <span class="ref-spinner spinner-border spinner-border-sm ms-2" id="refSpinner"></span>
+            </label>
+            {{ form.reference_number }}
+            <div class="field-hint">ዓይነት ሲቀይሩ ቁጥሩ ይዘምናል</div>
+            {% if form.reference_number.errors %}<div class="text-danger small mt-1">{{ form.reference_number.errors.0 }}</div>{% endif %}
+          </div>
+        </div>
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <label class="form-label">ላኪ <span class="required-star">*</span></label>
+            {{ form.sender }}
+            {% if form.sender.errors %}<div class="text-danger small mt-1">{{ form.sender.errors.0 }}</div>{% endif %}
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">ተቀባይ <span class="required-star">*</span></label>
+            {{ form.receiver }}
+            {% if form.receiver.errors %}<div class="text-danger small mt-1">{{ form.receiver.errors.0 }}</div>{% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Description -->
+      <div class="form-section">
+        <div class="form-section-title">
+          <i class="bi bi-chat-left-text"></i> መግለጫ እና ምድብ
+        </div>
+        <div class="mb-4">
+          <label class="form-label">
+            መግለጫ / ማስታወሻ
+            <span class="char-counter" id="descCounter">0 / 2000</span>
+          </label>
+          {{ form.description }}
+          {% if form.description.errors %}<div class="text-danger small mt-1">{{ form.description.errors.0 }}</div>{% endif %}
+        </div>
+        <div>
+          <label class="form-label">ምድብ</label>
+          {{ form.category }}
+          {% if form.category.errors %}<div class="text-danger small mt-1">{{ form.category.errors.0 }}</div>{% endif %}
+        </div>
+      </div>
+
+      <!-- Section 3: File upload -->
+      <div class="form-section">
+        <div class="form-section-title">
+          <i class="bi bi-paperclip"></i> ፋይል አያይዝ
+        </div>
+        {{ form.file }}
+        <div class="field-hint mt-2">
+          <i class="bi bi-info-circle me-1"></i>
+          PDF, JPG, PNG, DOC, DOCX — ከፍተኛ 20MB
+        </div>
+        {% if doc and doc.file %}
+        <div class="mt-3 p-3 bg-light rounded d-flex align-items-center gap-2">
+          <i class="bi bi-file-earmark-check text-success fs-5"></i>
+          <div>
+            <div style="font-size:.85rem;">ያለው ፋይል: <strong>{{ doc.file.name|slice:"10:" }}</strong></div>
+            <div class="field-hint">አዲስ ፋይል ካስገቡ ያለውን ይተካዋል</div>
+          </div>
+          <a href="{{ doc.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary ms-auto py-0">
+            <i class="bi bi-eye me-1"></i>ይክፈቱ
+          </a>
+        </div>
+        {% endif %}
+        {% if form.file.errors %}<div class="text-danger small mt-1">{{ form.file.errors.0 }}</div>{% endif %}
+      </div>
+
+    </div>
+
+    <!-- Right sidebar -->
+    <div class="col-lg-4">
+
+      <!-- Status & Priority -->
+      <div class="form-section">
+        <div class="form-section-title">
+          <i class="bi bi-sliders"></i> ሁኔታ እና ቅድሚያ
+        </div>
+        <div class="mb-3">
+          <label class="form-label">ሁኔታ</label>
+          {{ form.status }}
+        </div>
+        <div>
+          <label class="form-label">ቅድሚያ</label>
+          {{ form.priority }}
+          <div class="d-flex gap-1 mt-2 flex-wrap">
+            <span class="eb eb-LOW" style="cursor:pointer;" onclick="setPriority('LOW')">ዝቅተኛ</span>
+            <span class="eb eb-MEDIUM" style="cursor:pointer;" onclick="setPriority('MEDIUM')">መካከለኛ</span>
+            <span class="eb eb-HIGH" style="cursor:pointer;" onclick="setPriority('HIGH')">ከፍተኛ</span>
+            <span class="eb eb-URGENT" style="cursor:pointer;" onclick="setPriority('URGENT')">አስቸኳይ</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dates & Assignment -->
+      <div class="form-section">
+        <div class="form-section-title">
+          <i class="bi bi-calendar3"></i> ቀኖች እና ምደባ
+        </div>
+        <div class="mb-3">
+          <label class="form-label">የደረሰበት ቀን</label>
+          {{ form.date_received }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label">የመጨረሻ ቀን (Deadline)</label>
+          {{ form.due_date }}
+        </div>
+        <div>
+          <label class="form-label">
+            <i class="bi bi-person-badge me-1"></i>የተመደበለት
+          </label>
+          {{ form.assigned_to }}
+        </div>
+      </div>
+
+      <!-- Submit buttons -->
+      <div class="d-grid gap-2">
+        <button type="submit" class="btn btn-gold py-3" style="font-size:1rem; font-weight:700;">
+          <i class="bi bi-check-lg me-2"></i>
+          {% if doc %}ደብዳቤ ዘምን{% else %}ደብዳቤ ምዝገባ{% endif %}
+        </button>
+        <a href="{% if doc %}{% url 'document_detail' doc.pk %}{% else %}{% url 'document_list' %}{% endif %}"
+           class="btn btn-outline-secondary">
+          <i class="bi bi-x-lg me-1"></i>ሰርዝ
+        </a>
+      </div>
+
+    </div>
+  </div>
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-suggest reference number when doc_type changes
+const docTypeSelect = document.querySelector('[name="doc_type"]');
+const refInput      = document.querySelector('[name="reference_number"]');
+const spinner       = document.getElementById('refSpinner');
+
+if (docTypeSelect && refInput) {
+  docTypeSelect.addEventListener('change', function() {
+    const val = this.value;
+    if (!val) return;
+    spinner.style.display = 'inline-block';
+    fetch(`/api/suggest-reference/?doc_type=${val}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.reference) refInput.value = data.reference;
+      })
+      .finally(() => { spinner.style.display = 'none'; });
+  });
+}
+
+// Character counter for description
+const desc = document.querySelector('[name="description"]');
+const counter = document.getElementById('descCounter');
+if (desc && counter) {
+  const update = () => { counter.textContent = desc.value.length + ' / 2000'; };
+  desc.addEventListener('input', update);
+  update();
+}
+
+// Priority quick-select badges
+function setPriority(val) {
+  const sel = document.querySelector('[name="priority"]');
+  if (sel) sel.value = val;
+}
+
+// Today button shortcut for date_received
+const dateReceived = document.querySelector('[name="date_received"]');
+if (dateReceived && !dateReceived.value) {
+  const today = new Date().toISOString().split('T')[0];
+  dateReceived.value = today;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,183 @@
+{% extends "documents/base.html" %}
+{% block title %}Audit Trail — ወልድያ EDMS{% endblock %}
+{% block page_title %}Audit Trail{% endblock %}
+{% block page_subtitle %}ሁሉም የስርዓት እንቅስቃሴዎች{% endblock %}
+
+{% block extra_css %}
+<style>
+  .filter-bar { background:#f8faff; border:1px solid #e2e8f0; border-radius:10px; padding:16px 18px; }
+  .action-badge {
+    display:inline-block; padding:2px 9px; border-radius:20px;
+    font-size:.7rem; font-weight:600; white-space:nowrap;
+  }
+  .ab-create  { background:#e8f5e9; color:#1b5e20; }
+  .ab-update  { background:#e3f2fd; color:#0d47a1; }
+  .ab-delete  { background:#ffebee; color:#b71c1c; }
+  .ab-status  { background:#fff3e0; color:#e65100; }
+  .ab-download{ background:#f3e5f5; color:#4a148c; }
+  .ab-default { background:#f1f5f9; color:#334155; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Filter bar -->
+<div class="filter-bar mb-4 no-print">
+  <form method="get" class="row g-3 align-items-end">
+    <div class="col-sm-6 col-md-3">
+      <label class="form-label mb-1"><i class="bi bi-person me-1"></i>ተጠቃሚ</label>
+      <input type="text" name="user" value="{{ filter_user }}"
+             class="form-control form-control-sm" placeholder="ስም ወይም username">
+    </div>
+    <div class="col-sm-6 col-md-3">
+      <label class="form-label mb-1"><i class="bi bi-lightning me-1"></i>እርምጃ</label>
+      <input type="text" name="action" value="{{ filter_action }}"
+             class="form-control form-control-sm" placeholder="ለምሳሌ: ሁኔታ ተቀይሯል">
+    </div>
+    <div class="col-sm-6 col-md-2">
+      <label class="form-label mb-1"><i class="bi bi-calendar me-1"></i>ከቀን</label>
+      <input type="date" name="date_from" value="{{ filter_date_from }}"
+             class="form-control form-control-sm">
+    </div>
+    <div class="col-sm-6 col-md-2">
+      <label class="form-label mb-1"><i class="bi bi-calendar me-1"></i>እስከቀን</label>
+      <input type="date" name="date_to" value="{{ filter_date_to }}"
+             class="form-control form-control-sm">
+    </div>
+    <div class="col-sm-12 col-md-2 d-flex gap-2">
+      <button type="submit" class="btn btn-brand btn-sm flex-grow-1">
+        <i class="bi bi-search me-1"></i>ፈልግ
+      </button>
+      <a href="{% url 'audit_trail' %}" class="btn btn-outline-secondary btn-sm" title="ሁሉም አሳይ">
+        <i class="bi bi-x-lg"></i>
+      </a>
+    </div>
+  </form>
+</div>
+
+<!-- Export + Print bar -->
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 no-print">
+  <div class="text-muted small">
+    <i class="bi bi-list-ul me-1"></i>
+    {{ page_obj.paginator.count }} ከጠቅላላ ምዝገባዎች
+    {% if filter_user or filter_action or filter_date_from or filter_date_to %}
+    <span class="badge bg-info text-dark ms-2">ፈልጎ ተጣርቷል</span>
+    {% endif %}
+  </div>
+  <div class="d-flex gap-2">
+    <a href="?user={{ filter_user }}&action={{ filter_action }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}&export=csv"
+       class="btn btn-sm btn-outline-success">
+      <i class="bi bi-file-earmark-spreadsheet me-1"></i>CSV ወርድ
+    </a>
+    <button onclick="window.print()" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-printer me-1"></i>አትም
+    </button>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="page-card">
+  <div class="table-responsive">
+    <table class="edms-table">
+      <thead>
+        <tr>
+          <th style="width:140px;">ቀን እና ሰዓት</th>
+          <th style="width:130px;">ተጠቃሚ</th>
+          <th>ደብዳቤ</th>
+          <th style="width:160px;">እርምጃ</th>
+          <th>ዝርዝር</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in page_obj %}
+        <tr>
+          <td class="text-muted" style="font-size:.78rem; white-space:nowrap;">
+            <i class="bi bi-clock me-1"></i>{{ log.timestamp|date:"d/m/Y" }}<br>
+            <span style="font-size:.72rem;">{{ log.timestamp|date:"H:i" }}</span>
+          </td>
+          <td>
+            {% if log.user %}
+            <div class="fw-medium" style="font-size:.83rem;">
+              {{ log.user.get_full_name|default:log.user.username }}
+            </div>
+            <div class="text-muted" style="font-size:.72rem;">{{ log.user.username }}</div>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{% url 'document_detail' log.document.pk %}"
+               class="text-decoration-none text-primary fw-semibold" style="font-size:.83rem;">
+              {{ log.document.reference_number }}
+            </a>
+            <div class="text-muted" style="font-size:.76rem;">{{ log.document.title|truncatechars:40 }}</div>
+          </td>
+          <td>
+            {% with a=log.action %}
+            <span class="action-badge
+              {% if 'ተመዝግቧ' in a or 'ተፈጠረ' in a %}ab-create
+              {% elif 'ተዘምኗ' in a or 'ተስተካክሏ' in a %}ab-update
+              {% elif 'ተሰርዟ' in a %}ab-delete
+              {% elif 'ሁኔታ' in a %}ab-status
+              {% elif 'ወረደ' in a %}ab-download
+              {% else %}ab-default{% endif %}">
+              {{ a }}
+            </span>
+            {% endwith %}
+          </td>
+          <td class="text-muted" style="font-size:.8rem;">{{ log.detail|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-center text-muted py-5">
+            <i class="bi bi-clock-history fs-2 d-block mb-2 opacity-25"></i>
+            ምንም ታሪክ አልተገኘም
+            {% if filter_user or filter_action or filter_date_from or filter_date_to %}
+            — <a href="{% url 'audit_trail' %}">ማጣሪያ አጥፋ</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if page_obj.has_other_pages %}
+  <div class="d-flex justify-content-between align-items-center px-4 py-3 border-top no-print">
+    <small class="text-muted">
+      ገጽ {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+      &nbsp;({{ page_obj.paginator.count }} ምዝገባ)
+    </small>
+    <nav>
+      <ul class="pagination pagination-sm mb-0 gap-1">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.previous_page_number }}&user={{ filter_user }}&action={{ filter_action }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}">
+            <i class="bi bi-chevron-left"></i>
+          </a>
+        </li>
+        {% endif %}
+        {% for num in page_obj.paginator.page_range %}
+          {% if num == page_obj.number %}
+          <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+          {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ num }}&user={{ filter_user }}&action={{ filter_action }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}">{{ num }}</a>
+          </li>
+          {% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.next_page_number }}&user={{ filter_user }}&action={{ filter_action }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}">
+            <i class="bi bi-chevron-right"></i>
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

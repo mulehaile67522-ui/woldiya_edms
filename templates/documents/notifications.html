@@ -1,0 +1,121 @@
+{% extends "documents/base.html" %}
+{% block title %}ማሳወቂያዎች — ወልድያ EDMS{% endblock %}
+{% block page_title %}ማሳወቂያዎች{% endblock %}
+{% block page_subtitle %}{{ unread_count }} ያልተነበቡ{% endblock %}
+
+{% block extra_css %}
+<style>
+  .notif-item { transition:background .15s; border-left:3px solid transparent; }
+  .notif-item.unread { background:#f0f7ff; border-left-color:var(--brand); }
+  .notif-item:hover { background:#f8faff; }
+  .date-divider {
+    font-size:.72rem; font-weight:700; letter-spacing:.8px; text-transform:uppercase;
+    color:#94a3b8; background:#f8fafc;
+    padding:6px 18px; border-top:1px solid #f1f5f9; border-bottom:1px solid #f1f5f9;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <span class="fw-bold" style="color:var(--brand);">
+      <i class="bi bi-bell-fill me-2"></i>ሁሉም ማሳወቂያዎች
+    </span>
+    {% if unread_count %}
+    <span class="badge bg-danger ms-2">{{ unread_count }} አዲስ</span>
+    {% endif %}
+  </div>
+  {% if unread_count %}
+  <form method="post" action="{% url 'mark_all_notifications_read' %}" class="no-print">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-sm btn-outline-primary">
+      <i class="bi bi-check2-all me-1"></i>ሁሉም እንደተነበቡ ምልክት አድርግ
+    </button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="page-card">
+  {% if notifs %}
+    {% for day, day_notifs in grouped.items %}
+    <div class="date-divider">
+      {% if day == today %}
+        <i class="bi bi-calendar-day me-1"></i>ዛሬ — {{ day }}
+      {% else %}
+        <i class="bi bi-calendar3 me-1"></i>{{ day }}
+      {% endif %}
+    </div>
+    {% for n in day_notifs %}
+    <div class="notif-item d-flex align-items-start gap-3 px-4 py-3 {% if not n.is_read %}unread{% endif %}">
+      <div class="flex-shrink-0 pt-1">
+        {% if not n.is_read %}
+        <span class="badge bg-primary rounded-pill" style="font-size:.62rem;padding:3px 7px;">አዲስ</span>
+        {% else %}
+        <i class="bi bi-check-circle-fill text-success" style="font-size:1rem;"></i>
+        {% endif %}
+      </div>
+      <div class="flex-grow-1" style="min-width:0;">
+        <div style="font-size:.88rem;" class="{% if not n.is_read %}fw-medium{% endif %}">{{ n.message }}</div>
+        <div class="text-muted mt-1" style="font-size:.74rem;">
+          <i class="bi bi-clock me-1"></i>{{ n.created_at|date:"d/m/Y H:i" }}
+        </div>
+      </div>
+      <div class="d-flex gap-2 flex-shrink-0 align-items-center no-print">
+        {% if n.link %}
+        <a href="{{ n.link }}" class="btn btn-sm btn-outline-primary py-0 px-2" title="ይክፈቱ">
+          <i class="bi bi-arrow-right"></i>
+        </a>
+        {% endif %}
+        {% if not n.is_read %}
+        <form method="post" action="{% url 'mark_notification_read' n.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-sm btn-outline-secondary py-0 px-2" title="እንደተነበበ ምልክት">
+            <i class="bi bi-check2"></i>
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% endfor %}
+  {% else %}
+  <div class="text-center text-muted py-6" style="padding:60px 20px;">
+    <i class="bi bi-bell-slash fs-1 d-block mb-3 opacity-25"></i>
+    <div class="fw-medium">ምንም ማሳወቂያ የለም</div>
+    <div class="small mt-1">አዲስ ደብዳቤ ሲመዘገብ ማሳወቂያ ይደርስዎታል።</div>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// AJAX mark-as-read
+document.querySelectorAll('.mark-read-btn').forEach(btn => {
+  btn.addEventListener('click', function(e) {
+    e.preventDefault();
+    const form = this.closest('form');
+    fetch(form.action, {
+      method: 'POST',
+      body: new FormData(form),
+      headers: {'X-Requested-With': 'XMLHttpRequest'}
+    }).then(r => r.json()).then(d => {
+      if (d.success) {
+        const item = this.closest('.notif-item');
+        item.classList.remove('unread');
+        this.closest('.d-flex.gap-2')?.remove();
+        // Update badge
+        const badge = document.querySelector('.badge.bg-danger');
+        if (badge) {
+          const n = parseInt(badge.textContent) - 1;
+          if (n <= 0) badge.remove(); else badge.textContent = n + ' አዲስ';
+        }
+      }
+    });
+  });
+});
+</script>
+{% endblock %}
