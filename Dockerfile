@@ -27,6 +27,4 @@ RUN python manage.py collectstatic --noinput
 EXPOSE 8000
 
 # Start command
-CMD python manage.py migrate --run-syncdb && \
-    python manage.py create_admin && \
-    gunicorn edms_project.wsgi --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+CMD sh -c "python manage.py migrate --run-syncdb && python manage.py create_admin && gunicorn edms_project.wsgi --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
