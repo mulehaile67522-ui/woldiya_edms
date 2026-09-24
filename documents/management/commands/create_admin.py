@@ -20,8 +20,8 @@ class Command(BaseCommand):
     help = 'Create initial superuser from environment variables (idempotent)'
 
     def handle(self, *args, **options):
-        username = os.environ.get('DJANGO_SUPERUSER_USERNAME', 'admin')
-        password = os.environ.get('DJANGO_SUPERUSER_PASSWORD', 'Admin@1234')
+        username = os.environ.get('DJANGO_SUPERUSER_USERNAME', 'Admin')
+        password = os.environ.get('DJANGO_SUPERUSER_PASSWORD', 'mule@67')
         email    = os.environ.get('DJANGO_SUPERUSER_EMAIL',    'admin@woldiya.gov.et')
         update_password = os.environ.get('DJANGO_SUPERUSER_UPDATE_PASSWORD', '').lower() in ('1', 'true', 'yes')
 
