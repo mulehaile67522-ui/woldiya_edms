@@ -3,7 +3,7 @@ services:
     name: woldiya-edms
     runtime: python
     buildCommand: ./build.sh
-    startCommand: gunicorn edms_project.wsgi --log-file -
+    startCommand: gunicorn edms_project.wsgi --bind 0.0.0.0:$PORT --workers 2 --timeout 120
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -17,12 +17,6 @@ services:
         value: .onrender.com,localhost,127.0.0.1
       - key: CSRF_TRUSTED_ORIGINS
         value: https://*.onrender.com
-      - key: CLOUDINARY_CLOUD_NAME
-        sync: false
-      - key: CLOUDINARY_API_KEY
-        sync: false
-      - key: CLOUDINARY_API_SECRET
-        sync: false
 
 databases:
   - name: woldiya-edms-db

@@ -1,1 +1,1 @@
-web: gunicorn edms_project.wsgi --log-file -
+web: gunicorn edms_project.wsgi --bind 0.0.0.0:$PORT --workers 2 --timeout 120
