@@ -41,9 +41,9 @@
   <h5><i class="bi bi-lightbulb-fill me-2" style="color:var(--brand-gold);"></i>የፈጠራ ፕሮጀክቶች</h5>
   <div class="line"></div>
   {% if request.user.is_staff %}
-  <a href="/admin/documents/innovationproject/add/" class="btn btn-gold btn-sm no-print">
+  <button class="btn btn-gold btn-sm no-print" data-bs-toggle="modal" data-bs-target="#addProjectModal">
     <i class="bi bi-plus-lg me-1"></i>አዲስ ፕሮጀክት
-  </a>
+  </button>
   {% endif %}
 </div>
 
@@ -87,9 +87,9 @@
   <i class="bi bi-lightbulb fs-1 d-block mb-3 opacity-25 text-warning"></i>
   <div class="fw-semibold text-muted mb-2">ምንም ፕሮጀክት አልተፈጠረም</div>
   {% if request.user.is_staff %}
-  <a href="/admin/documents/innovationproject/add/" class="btn btn-gold btn-sm mt-2">
+  <button class="btn btn-gold btn-sm mt-2" data-bs-toggle="modal" data-bs-target="#addProjectModal">
     <i class="bi bi-plus-lg me-1"></i>ፕሮጀክት ፍጠር
-  </a>
+  </button>
   {% endif %}
 </div>
 {% endif %}
@@ -99,9 +99,9 @@
   <h5><i class="bi bi-mortarboard-fill me-2" style="color:var(--brand);"></i>ሥልጠናዎች</h5>
   <div class="line"></div>
   {% if request.user.is_staff %}
-  <a href="/admin/documents/training/add/" class="btn btn-brand btn-sm no-print">
+  <button class="btn btn-brand btn-sm no-print" data-bs-toggle="modal" data-bs-target="#addTrainingModal">
     <i class="bi bi-plus-lg me-1"></i>አዲስ ሥልጠና
-  </a>
+  </button>
   {% endif %}
 </div>
 
@@ -156,10 +156,109 @@
   <i class="bi bi-mortarboard fs-1 d-block mb-3 opacity-25 text-primary"></i>
   <div class="fw-semibold text-muted mb-2">ምንም ሥልጠና አልተፈጠረም</div>
   {% if request.user.is_staff %}
-  <a href="/admin/documents/training/add/" class="btn btn-brand btn-sm mt-2">
+  <button class="btn btn-brand btn-sm mt-2" data-bs-toggle="modal" data-bs-target="#addTrainingModal">
     <i class="bi bi-plus-lg me-1"></i>ሥልጠና ፍጠር
-  </a>
+  </button>
   {% endif %}
+</div>
+{% endif %}
+
+{% if request.user.is_staff %}
+<!-- Add Project Modal -->
+<div class="modal fade" id="addProjectModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="form_type" value="project">
+        <div class="modal-header" style="background:var(--brand); color:#fff;">
+          <h5 class="modal-title"><i class="bi bi-lightbulb-fill me-2"></i>አዲስ ፕሮጀክት ፍጠር</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">ርዕስ <span class="text-danger">*</span></label>
+            {{ proj_form.title }}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">መግለጫ <span class="text-danger">*</span></label>
+            {{ proj_form.description }}
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">ኃላፊ</label>
+              {{ proj_form.lead }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">ሁኔታ</label>
+              {{ proj_form.status }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">መጀመሪያ ቀን</label>
+              {{ proj_form.start_date }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">መጨረሻ ቀን</label>
+              {{ proj_form.end_date }}
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ይዝጉ</button>
+          <button type="submit" class="btn btn-gold"><i class="bi bi-check-lg me-1"></i>ፕሮጀክት ፍጠር</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Add Training Modal -->
+<div class="modal fade" id="addTrainingModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="form_type" value="training">
+        <div class="modal-header" style="background:var(--brand); color:#fff;">
+          <h5 class="modal-title"><i class="bi bi-mortarboard-fill me-2"></i>አዲስ ሥልጠና ፍጠር</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">ርዕስ <span class="text-danger">*</span></label>
+            {{ training_form.title }}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">መግለጫ</label>
+            {{ training_form.description }}
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">አሠልጣኝ</label>
+              {{ training_form.trainer }}
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">ቀን <span class="text-danger">*</span></label>
+              {{ training_form.date }}
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">ቀናት</label>
+              {{ training_form.duration }}
+            </div>
+          </div>
+          <div class="mt-3">
+            <label class="form-label fw-semibold">ተሳታፊዎች</label>
+            {{ training_form.participants }}
+            <div class="form-text">Ctrl ይያዙ ብዙ ለመምረጥ</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ይዝጉ</button>
+          <button type="submit" class="btn btn-brand"><i class="bi bi-check-lg me-1"></i>ሥልጠና ፍጠር</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 {% endif %}
 

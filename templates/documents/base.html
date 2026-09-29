@@ -274,7 +274,7 @@
     </a></li>
     <li><a href="{% url 'inbox' %}" class="nav-link {% if request.resolver_match.url_name == 'inbox' %}active{% endif %}">
       <i class="bi bi-inbox-fill" style="color:#ffd54f"></i> ገቢ መልዕክቶች
-      {% with inbox_count=request.user.received_forwards.filter.count %}{% endwith %}
+      {% if inbox_unread %}<span class="badge bg-warning text-dark ms-auto" style="font-size:.6rem;">{{ inbox_unread }}</span>{% endif %}
     </a></li>
     <li><a href="{% url 'document_list' %}?doc_type=INCOMING" class="nav-link">
       <i class="bi bi-inbox-fill" style="color:#90caf9"></i> ገቢ ደብዳቤ

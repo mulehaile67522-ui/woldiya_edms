@@ -14,7 +14,7 @@ import json, datetime, csv, os
 
 from .models import (Document, Category, Notification,
                      InnovationProject, Training, UserProfile, ActivityLog)
-from .forms import DocumentForm, DocumentSearchForm, CategoryForm
+from .forms import DocumentForm, DocumentSearchForm, CategoryForm, InnovationProjectForm, TrainingForm
 from .activity import log_activity, notify_users
 from .decorators import registrar_required, admin_required
 from .utils import generate_reference_number, generate_qr_code
@@ -603,8 +603,36 @@ def _export_pdf_report(docs, by_type, by_status, by_priority, monthly, today):
 def capacity_building(request):
     projects  = InnovationProject.objects.select_related('lead').order_by('-created_at')
     trainings = Training.objects.prefetch_related('participants').order_by('-date')
+
+    proj_form     = InnovationProjectForm()
+    training_form = TrainingForm()
+
+    if request.method == 'POST':
+        if not (request.user.is_staff or request.user.is_superuser):
+            messages.error(request, 'ፈቃድ የለዎትም።')
+            return redirect('capacity_building')
+
+        form_type = request.POST.get('form_type')
+
+        if form_type == 'project':
+            proj_form = InnovationProjectForm(request.POST)
+            if proj_form.is_valid():
+                proj_form.save()
+                messages.success(request, 'ፕሮጀክት ተፈጠረ!')
+                return redirect('capacity_building')
+
+        elif form_type == 'training':
+            training_form = TrainingForm(request.POST)
+            if training_form.is_valid():
+                training_form.save()
+                messages.success(request, 'ሥልጠና ተፈጠረ!')
+                return redirect('capacity_building')
+
     return render(request, 'documents/capacity_building.html', {
-        'projects': projects, 'trainings': trainings,
+        'projects':      projects,
+        'trainings':     trainings,
+        'proj_form':     proj_form,
+        'training_form': training_form,
     })
 
 
@@ -1094,3 +1122,29 @@ def official_letter_pdf(request, pk):
     except Exception as e:
         messages.error(request, f'PDF ስህተት: {e}')
         return redirect('document_detail', pk=pk)
+
+
+# ──────────────────────────── PASSWORD CHANGE ────────────────────────
+
+@login_required
+def change_password(request):
+    if request.method == 'POST':
+        current  = request.POST.get('current_password', '').strip()
+        new_pw   = request.POST.get('new_password', '').strip()
+        confirm  = request.POST.get('confirm_password', '').strip()
+
+        if not request.user.check_password(current):
+            messages.error(request, 'የአሁኑ ፓስዎርድ ትክክል አይደለም።')
+        elif len(new_pw) < 8:
+            messages.error(request, 'አዲሱ ፓስዎርድ ቢያንስ 8 ፊደላት ይኑሩት።')
+        elif new_pw != confirm:
+            messages.error(request, 'ፓስዎርዶች አይዛመዱም።')
+        else:
+            request.user.set_password(new_pw)
+            request.user.save()
+            from django.contrib.auth import update_session_auth_hash
+            update_session_auth_hash(request, request.user)
+            messages.success(request, 'ፓስዎርድ ተቀይሯል!')
+            return redirect('profile')
+
+    return render(request, 'documents/change_password.html')

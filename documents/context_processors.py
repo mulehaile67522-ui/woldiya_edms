@@ -1,5 +1,5 @@
 from django.utils import timezone
-from .models import Document
+from .models import Document, DocumentForward
 
 
 def notifications(request):
@@ -12,6 +12,13 @@ def notifications(request):
         unread_notifications = request.user.notifications.filter(is_read=False).count()
     except Exception:
         unread_notifications = 0
+
+    try:
+        inbox_unread = DocumentForward.objects.filter(
+            to_user=request.user, is_read=False
+        ).count()
+    except Exception:
+        inbox_unread = 0
 
     overdue_count = Document.objects.filter(
         due_date__lt=today
@@ -35,11 +42,12 @@ def notifications(request):
 
     user_is_admin      = user_role == 'ADMIN'
     user_is_registrar  = user_role in ('ADMIN', 'REGISTRAR')
-    user_can_edit      = user_is_admin        # Only ADMIN can edit/delete
-    user_can_create    = user_is_registrar    # ADMIN + REGISTRAR can create
+    user_can_edit      = user_is_admin
+    user_can_create    = user_is_registrar
 
     return {
         'unread_notifications': unread_notifications,
+        'inbox_unread':         inbox_unread,
         'overdue_count':        overdue_count,
         'urgent_count':         urgent_count,
         'today_count':          today_count,

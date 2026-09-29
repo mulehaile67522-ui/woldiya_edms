@@ -59,4 +59,5 @@ urlpatterns = [
     path('documents/<int:pk>/letter-pdf/',   views.official_letter_pdf, name='official_letter_pdf'),
     path('inbox/',                           views.inbox,              name='inbox'),
     path('inbox/<int:pk>/read/',             views.mark_forward_read,  name='mark_forward_read'),
+    path('change-password/',                 views.change_password,    name='change_password'),
 ]
