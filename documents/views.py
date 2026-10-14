@@ -122,17 +122,17 @@ def document_list(request):
     is_admin = request.user.is_superuser or request.user.is_staff
     if not is_admin:
         try:
+            role      = request.user.profile.role
             user_dept = request.user.profile.department.strip()
         except Exception:
+            role      = 'VIEWER'
             user_dept = ''
-        if not is_admin:
-            role = request.user.profile.role if hasattr(request.user, 'profile') else 'VIEWER'
-            if role != 'ADMIN':
-                if user_dept:
-                    docs = docs.filter(department=user_dept)
-                else:
-                    # No department set — only see own documents
-                    docs = docs.filter(created_by=request.user)
+        if role != 'ADMIN':
+            if user_dept:
+                docs = docs.filter(department=user_dept)
+            else:
+                # No department set — only see own documents
+                docs = docs.filter(created_by=request.user)
 
     if form.is_valid():
         q = form.cleaned_data.get('query')
