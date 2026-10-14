@@ -1,0 +1,222 @@
+{% extends "documents/base.html" %}
+{% block title %}QR Scanner — ወልድያ EDMS{% endblock %}
+{% block page_title %}QR Code Scanner{% endblock %}
+{% block page_subtitle %}ካሜራ በመጠቀም ደብዳቤ ይፈልጉ{% endblock %}
+
+{% block extra_css %}
+<style>
+  .scanner-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #000;
+    box-shadow: 0 8px 32px rgba(0,0,0,.3);
+  }
+  #video {
+    width: 100%;
+    display: block;
+    border-radius: 16px;
+  }
+  #canvas { display: none; }
+
+  /* Scanning overlay */
+  .scan-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+  .scan-frame {
+    width: 220px;
+    height: 220px;
+    position: relative;
+  }
+  .scan-frame::before, .scan-frame::after,
+  .scan-frame span::before, .scan-frame span::after {
+    content: '';
+    position: absolute;
+    width: 36px;
+    height: 36px;
+    border-color: var(--brand-gold);
+    border-style: solid;
+  }
+  .scan-frame::before  { top:0; left:0;  border-width: 4px 0 0 4px; }
+  .scan-frame::after   { top:0; right:0; border-width: 4px 4px 0 0; }
+  .scan-frame span::before { bottom:0; left:0;  border-width: 0 0 4px 4px; }
+  .scan-frame span::after  { bottom:0; right:0; border-width: 0 4px 4px 0; }
+
+  /* Scan line animation */
+  .scan-line {
+    position: absolute;
+    left: 10px; right: 10px;
+    height: 3px;
+    background: linear-gradient(to right, transparent, var(--brand-gold), transparent);
+    animation: scanMove 2s linear infinite;
+    border-radius: 2px;
+    box-shadow: 0 0 8px var(--brand-gold);
+  }
+  @keyframes scanMove {
+    0%   { top: 10px; }
+    100% { top: 200px; }
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-weight: 600;
+    font-size: .9rem;
+  }
+  .status-scanning { background: #e0f2fe; color: #0277bd; }
+  .status-found    { background: #e8f5e9; color: #1b5e20; }
+  .status-error    { background: #fce4ec; color: #880e4f; }
+
+  .manual-form input {
+    border-radius: 10px 0 0 10px;
+    border-right: none;
+  }
+  .manual-form button {
+    border-radius: 0 10px 10px 0;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+
+    <!-- Status -->
+    <div class="text-center mb-4">
+      <div id="status" class="status-badge status-scanning">
+        <div class="spinner-border spinner-border-sm" role="status"></div>
+        <span id="status-text">ካሜራ እየተጫነ ነው...</span>
+      </div>
+    </div>
+
+    <!-- Camera scanner -->
+    <div class="scanner-wrap mb-4">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="canvas"></canvas>
+      <div class="scan-overlay">
+        <div class="scan-frame">
+          <span></span>
+          <div class="scan-line" id="scanLine"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Result -->
+    <div id="result-box" class="page-card p-4 mb-4 text-center d-none">
+      <i class="bi bi-qr-code-scan fs-1 text-success d-block mb-2"></i>
+      <div class="fw-bold mb-1">QR Code ተነበበ!</div>
+      <div id="result-text" class="text-muted small mb-3"></div>
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">እየተፈለገ...</span>
+      </div>
+    </div>
+
+    <!-- Manual entry fallback -->
+    <div class="page-card p-4">
+      <h6 class="fw-bold mb-3" style="color:var(--brand);">
+        <i class="bi bi-keyboard me-2"></i>በእጅ ያስገቡ
+      </h6>
+      <p class="text-muted small mb-3">ካሜራ የሌለ ከሆነ የደብዳቤ ቁጥር ወይም URL ያስገቡ</p>
+      <form method="post" class="d-flex manual-form">
+        {% csrf_token %}
+        <input type="text" name="scanned_url"
+               class="form-control"
+               placeholder="ደብዳቤ ቁጥር ወይም URL — ወ.ከ.አ/001/2026"
+               required>
+        <button type="submit" class="btn btn-brand px-3">
+          <i class="bi bi-search"></i>
+        </button>
+      </form>
+    </div>
+
+  </div>
+</div>
+
+<!-- Hidden form for auto-submit after scan -->
+<form id="scan-form" method="post" style="display:none;">
+  {% csrf_token %}
+  <input type="hidden" name="scanned_url" id="scanned-input">
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script>
+const video      = document.getElementById('video');
+const canvas     = document.getElementById('canvas');
+const ctx        = canvas.getContext('2d');
+const statusEl   = document.getElementById('status');
+const statusText = document.getElementById('status-text');
+const resultBox  = document.getElementById('result-box');
+const resultText = document.getElementById('result-text');
+const scanForm   = document.getElementById('scan-form');
+const scanInput  = document.getElementById('scanned-input');
+
+let scanning = true;
+
+function setStatus(type, text) {
+  statusEl.className = 'status-badge status-' + type;
+  if (type === 'scanning') {
+    statusEl.innerHTML = `<div class="spinner-border spinner-border-sm" role="status"></div><span>${text}</span>`;
+  } else if (type === 'found') {
+    statusEl.innerHTML = `<i class="bi bi-check-circle-fill"></i><span>${text}</span>`;
+  } else {
+    statusEl.innerHTML = `<i class="bi bi-exclamation-circle-fill"></i><span>${text}</span>`;
+  }
+}
+
+// Start camera
+navigator.mediaDevices.getUserMedia({
+  video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+}).then(stream => {
+  video.srcObject = stream;
+  video.play();
+  setStatus('scanning', 'QR Code ይያዙ...');
+  requestAnimationFrame(tick);
+}).catch(err => {
+  setStatus('error', 'ካሜራ አልተገኘም — በእጅ ያስገቡ');
+  document.getElementById('scanLine').style.display = 'none';
+  console.error(err);
+});
+
+function tick() {
+  if (!scanning) return;
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    canvas.height = video.videoHeight;
+    canvas.width  = video.videoWidth;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'dontInvert',
+    });
+    if (code) {
+      scanning = false;
+      setStatus('found', 'QR Code ተነበበ! እየተፈለገ...');
+      resultText.textContent = code.data.substring(0, 80);
+      resultBox.classList.remove('d-none');
+
+      // Stop camera
+      video.srcObject.getTracks().forEach(t => t.stop());
+
+      // Submit form
+      scanInput.value = code.data;
+      setTimeout(() => scanForm.submit(), 800);
+      return;
+    }
+  }
+  requestAnimationFrame(tick);
+}
+</script>
+{% endblock %}

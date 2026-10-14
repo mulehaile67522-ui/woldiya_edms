@@ -60,4 +60,5 @@ urlpatterns = [
     path('inbox/',                           views.inbox,              name='inbox'),
     path('inbox/<int:pk>/read/',             views.mark_forward_read,  name='mark_forward_read'),
     path('change-password/',                 views.change_password,    name='change_password'),
+    path('scanner/',                         views.qr_scanner,         name='qr_scanner'),
 ]

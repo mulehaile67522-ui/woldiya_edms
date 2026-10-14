@@ -1148,3 +1148,32 @@ def change_password(request):
             return redirect('profile')
 
     return render(request, 'documents/change_password.html')
+
+
+# ──────────────────────────── QR SCANNER ─────────────────────────────
+
+@login_required
+def qr_scanner(request):
+    """QR code scanner page — scans QR and redirects to document."""
+    if request.method == 'POST':
+        scanned = request.POST.get('scanned_url', '').strip()
+        if not scanned:
+            messages.error(request, 'QR Code አልተነበበም። እንደገና ይሞክሩ።')
+            return redirect('qr_scanner')
+
+        # Extract document ID from URL like /documents/5/ or full URL
+        import re
+        match = re.search(r'/documents/(\d+)/', scanned)
+        if match:
+            doc_id = match.group(1)
+            return redirect('document_detail', pk=doc_id)
+
+        # Try reference number search
+        doc = Document.objects.filter(reference_number__iexact=scanned).first()
+        if doc:
+            return redirect('document_detail', pk=doc.pk)
+
+        messages.warning(request, f'ደብዳቤ አልተገኘም። የተነበበው: {scanned[:100]}')
+        return redirect('qr_scanner')
+
+    return render(request, 'documents/qr_scanner.html')

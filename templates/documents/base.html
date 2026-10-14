@@ -302,6 +302,9 @@
     <li><a href="{% url 'document_create' %}" class="nav-link">
       <i class="bi bi-plus-circle-fill" style="color:#a5d6a7"></i> አዲስ ደብዳቤ
     </a></li>
+    <li><a href="{% url 'qr_scanner' %}" class="nav-link {% if request.resolver_match.url_name == 'qr_scanner' %}active{% endif %}">
+      <i class="bi bi-qr-code-scan" style="color:#ffd54f"></i> QR Scanner
+    </a></li>
     {% if user_can_create %}
     <li><a href="{% url 'my_documents' %}" class="nav-link {% if request.resolver_match.url_name == 'my_documents' %}active{% endif %}">
       <i class="bi bi-person-lines-fill" style="color:#80cbc4"></i> የእኔ ደብዳቤዎች
@@ -315,9 +318,11 @@
     <li><a href="{% url 'audit_trail' %}" class="nav-link {% if request.resolver_match.url_name == 'audit_trail' %}active{% endif %}">
       <i class="bi bi-journal-check" style="color:#80deea"></i> Audit Trail
     </a></li>
+    {% if user_is_admin %}
     <li><a href="{% url 'reports' %}" class="nav-link {% if request.resolver_match.url_name == 'reports' %}active{% endif %}">
       <i class="bi bi-bar-chart-fill" style="color:#80cbc4"></i> ሪፖርት
     </a></li>
+    {% endif %}
 
     <li><span class="sb-section">ፈጠራ እና አቅም</span></li>
     <li><a href="{% url 'capacity_building' %}" class="nav-link {% if request.resolver_match.url_name == 'capacity_building' %}active{% endif %}">
