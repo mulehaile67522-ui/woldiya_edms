@@ -47,6 +47,21 @@ def dashboard(request):
     week_start = today - datetime.timedelta(days=today.weekday())
     docs       = Document.objects.all()
 
+    # ── Department-based access control ──────────────────────────────
+    is_admin = request.user.is_superuser or request.user.is_staff
+    if not is_admin:
+        try:
+            role      = request.user.profile.role
+            user_dept = request.user.profile.department.strip()
+        except Exception:
+            role      = 'VIEWER'
+            user_dept = ''
+        if role != 'ADMIN':
+            if user_dept:
+                docs = docs.filter(department=user_dept)
+            else:
+                docs = docs.filter(created_by=request.user)
+
     total       = docs.count()
     incoming    = docs.filter(doc_type='INCOMING').count()
     outgoing    = docs.filter(doc_type='OUTGOING').count()
@@ -101,6 +116,23 @@ def dashboard(request):
 def document_list(request):
     form = DocumentSearchForm(request.GET or None)
     docs = Document.objects.select_related('category', 'created_by').all()
+
+    # ── Department-based access control ──────────────────────────────
+    # Admin sees all. Others see only their department's documents.
+    is_admin = request.user.is_superuser or request.user.is_staff
+    if not is_admin:
+        try:
+            user_dept = request.user.profile.department.strip()
+        except Exception:
+            user_dept = ''
+        if not is_admin:
+            role = request.user.profile.role if hasattr(request.user, 'profile') else 'VIEWER'
+            if role != 'ADMIN':
+                if user_dept:
+                    docs = docs.filter(department=user_dept)
+                else:
+                    # No department set — only see own documents
+                    docs = docs.filter(created_by=request.user)
 
     if form.is_valid():
         q = form.cleaned_data.get('query')
@@ -161,6 +193,21 @@ def _export_csv(queryset):
 @login_required
 def document_detail(request, pk):
     doc        = get_object_or_404(Document, pk=pk)
+
+    # ── Department-based access control ──────────────────────────────
+    is_admin = request.user.is_superuser or request.user.is_staff
+    if not is_admin:
+        try:
+            role      = request.user.profile.role
+            user_dept = request.user.profile.department.strip()
+        except Exception:
+            role      = 'VIEWER'
+            user_dept = ''
+        if role != 'ADMIN':
+            if user_dept and doc.department and doc.department != user_dept:
+                messages.error(request, 'ይህን ደብዳቤ የማየት ፈቃድ የለዎትም።')
+                return redirect('document_list')
+
     activities = doc.activities.select_related('user').order_by('-timestamp')[:20]
     today      = timezone.localdate()
     is_overdue = (doc.due_date and doc.due_date < today
@@ -180,6 +227,12 @@ def document_create(request):
     if request.method == 'POST' and form.is_valid():
         doc = form.save(commit=False)
         doc.created_by = request.user
+        # Auto-assign department from user profile
+        if not doc.department:
+            try:
+                doc.department = request.user.profile.department.strip()
+            except Exception:
+                doc.department = ''
         doc.save()
         log_activity(doc, request.user, 'ደብዳቤ ተመዝግቧል', f'"{doc.title}" ተመዝግቧል።')
         notify_users(

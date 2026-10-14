@@ -10,7 +10,7 @@ class DocumentForm(forms.ModelForm):
         model = Document
         fields = [
             'title', 'reference_number', 'doc_type', 'category',
-            'sender', 'receiver', 'description', 'file',
+            'department', 'sender', 'receiver', 'description', 'file',
             'status', 'priority', 'date_received', 'due_date', 'assigned_to',
         ]
         widgets = {
@@ -25,6 +25,10 @@ class DocumentForm(forms.ModelForm):
             }),
             'doc_type': forms.Select(attrs={'class': 'form-select'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
+            'department': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'ቢሮ / ክፍል ስም — ለምሳሌ: ፋይናንስ',
+            }),
             'sender': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'ላኪ ስም ወይም ተቋም',
@@ -60,6 +64,7 @@ class DocumentForm(forms.ModelForm):
         self.fields['file'].required = False
         self.fields['category'].empty_label = '-- ምድብ ይምረጡ --'
         self.fields['category'].required = False
+        self.fields['department'].required = False
         self.fields['description'].required = False
         self.fields['date_received'].required = False
         self.fields['due_date'].required = False

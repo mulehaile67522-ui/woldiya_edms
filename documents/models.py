@@ -134,6 +134,7 @@ class Document(models.Model):
     doc_type         = models.CharField(max_length=10, choices=DOCUMENT_TYPES, verbose_name='ዓይነት')
     category         = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True,
                                           related_name='documents', verbose_name='ምድብ')
+    department       = models.CharField(max_length=100, blank=True, verbose_name='ቢሮ / ክፍል')
     sender           = models.CharField(max_length=255, verbose_name='ላኪ')
     receiver         = models.CharField(max_length=255, verbose_name='ተቀባይ')
     description      = models.TextField(blank=True, verbose_name='መግለጫ / ማስታወሻ')
