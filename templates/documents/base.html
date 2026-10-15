@@ -1,17 +1,17 @@
-{% load static %}
+﻿{% load static %}
 <!DOCTYPE html>
 <html lang="am" dir="ltr">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>{% block title %}ወልድያ ከተማ አስተዳደር — EDMS{% endblock %}</title>
+  <title>{% block title %}á‹ˆáˆá‹µá‹« áŠ¨á‰°áˆ› áŠ áˆµá‰°á‹³á‹°áˆ­ â€” EDMS{% endblock %}</title>
   <!-- PWA -->
   <link rel="manifest" href="/static/manifest.json">
   <meta name="theme-color" content="#1b4f72">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="ወልድያ EDMS">
+  <meta name="apple-mobile-web-app-title" content="á‹ˆáˆá‹µá‹« EDMS">
   <link rel="apple-touch-icon" href="/static/img/woldiya_logo.png">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
@@ -36,7 +36,7 @@
       outline-offset: 2px !important;
     }
 
-    /* ── Sidebar ── */
+    /* â”€â”€ Sidebar â”€â”€ */
     #sidebar {
       width: var(--sidebar-w);
       height: 100vh;
@@ -97,7 +97,7 @@
     .sb-user a { color:var(--brand-gold); text-decoration:none; font-size:.78rem; }
     .sb-user a:hover { text-decoration:underline; }
 
-    /* ── Sidebar MINI mode (collapsed) ── */
+    /* â”€â”€ Sidebar MINI mode (collapsed) â”€â”€ */
     body.sb-mini #sidebar { width: var(--sidebar-mini); }
     body.sb-mini #main    { margin-left: var(--sidebar-mini); }
     body.sb-mini .sb-brand .org-name,
@@ -126,18 +126,18 @@
     #toggle-btn:hover { background:rgba(255,255,255,.15); color:#fff; }
     #toggle-btn i.bi-layout-sidebar-inset { display:none; }
 
-    /* ── Sidebar overlay (mobile) ── */
+    /* â”€â”€ Sidebar overlay (mobile) â”€â”€ */
     #sb-overlay {
       display:none; position:fixed; inset:0;
       background:rgba(0,0,0,.45); z-index:1040;
     }
     #sb-overlay.show { display:block; }
 
-    /* ── Main ── */
+    /* â”€â”€ Main â”€â”€ */
     #main { margin-left:var(--sidebar-w); min-height:100vh; display:flex; flex-direction:column;
             transition: margin-left .28s ease; }
 
-    /* ── Topbar ── */
+    /* â”€â”€ Topbar â”€â”€ */
     #topbar {
       height:var(--top-h); background:#fff;
       border-bottom:1px solid #e2e8f0;
@@ -149,7 +149,7 @@
     #topbar .page-title { font-weight:700; font-size:1.02rem; color:var(--brand); flex:1; min-width:0; }
     #topbar .page-title small { display:block; font-weight:400; font-size:.7rem; color:#94a3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-    /* ── Notification bell pulse ── */
+    /* â”€â”€ Notification bell pulse â”€â”€ */
     @keyframes bellPulse {
       0%,100% { transform:rotate(0); }
       10%      { transform:rotate(14deg); }
@@ -160,10 +160,10 @@
     }
     .bell-unread i { animation:bellPulse 2.5s ease infinite; display:inline-block; }
 
-    /* ── Content ── */
+    /* â”€â”€ Content â”€â”€ */
     .page-content { flex:1; padding:32px 28px; }
 
-    /* ── Stat cards ── */
+    /* â”€â”€ Stat cards â”€â”€ */
     .stat-card {
       border:none; border-radius:var(--radius);
       padding:28px 24px; color:#fff;
@@ -177,7 +177,7 @@
     .stat-card .s-val { font-size:2.4rem; font-weight:800; line-height:1; margin-bottom:8px; }
     .stat-card .s-lbl { font-size:.9rem; opacity:.88; line-height:1.4; }
 
-    /* ── Page card ── */
+    /* â”€â”€ Page card â”€â”€ */
     .page-card { background:#fff; border-radius:var(--radius); border:1px solid #e2e8f0; box-shadow:var(--shadow); }
     .page-card .card-head {
       padding:18px 24px; border-bottom:1px solid #f1f5f9;
@@ -185,7 +185,7 @@
     }
     .page-card .card-head h6 { margin:0; font-weight:700; font-size:1rem; color:var(--brand); }
 
-    /* ── EDMS table ── */
+    /* â”€â”€ EDMS table â”€â”€ */
     .edms-table { border-collapse:separate; border-spacing:0; width:100%; }
     .edms-table thead th {
       background:var(--brand); color:#fff;
@@ -198,7 +198,7 @@
     .edms-table tbody tr:hover td { background:#f8faff; }
     .edms-table tbody tr:last-child td { border-bottom:none; }
 
-    /* ── Badges ── */
+    /* â”€â”€ Badges â”€â”€ */
     .eb { display:inline-block; padding:5px 12px; border-radius:20px; font-size:.78rem; font-weight:600; color:#fff; white-space:nowrap; letter-spacing:.2px; }
     .eb-INCOMING  { background:#1565c0; }
     .eb-OUTGOING  { background:#6a1b9a; }
@@ -213,7 +213,7 @@
     .eb-LOW     { background:#388e3c; }
     .row-overdue td:first-child { border-left:4px solid #dc2626; }
 
-    /* ── Misc ── */
+    /* â”€â”€ Misc â”€â”€ */
     .alert { border-radius:10px; border:none; font-size:.92rem; padding:14px 16px; }
     .form-label { font-weight:600; font-size:.88rem; color:#374151; margin-bottom:6px; }
     .form-control,.form-select { border-radius:8px; font-size:.9rem; border-color:#d1d5db; padding:.6rem .9rem; }
@@ -224,7 +224,7 @@
     .btn-gold { background:var(--brand-gold); color:#fff; border:none; }
     .btn-gold:hover { background:#a07808; color:#fff; }
 
-    /* ── Responsive ── */
+    /* â”€â”€ Responsive â”€â”€ */
     @media (max-width:768px) {
       #sidebar {
         transform: translateX(-100%);
@@ -246,7 +246,7 @@
       #topbar { position: sticky; top: 0; z-index: 900; }
     }
 
-    /* ── Print ── */
+    /* â”€â”€ Print â”€â”€ */
     @media print {
       #sidebar,#topbar,.no-print { display:none !important; }
       #main { margin-left:0; }
@@ -260,15 +260,15 @@
 <!-- Mobile overlay -->
 <div id="sb-overlay" onclick="closeSidebar()"></div>
 
-<!-- ════ SIDEBAR ════ -->
+<!-- â•â•â•â• SIDEBAR â•â•â•â• -->
 <nav id="sidebar">
   <div class="sb-brand">
     <div class="emblem">
-      <img src="{% static 'img/woldiya_logo.png' %}" alt="ወልድያ" onerror="this.style.display='none';this.parentNode.innerHTML='🏛️';">
+      <img src="{% static 'img/woldiya_logo.png' %}" alt="á‹ˆáˆá‹µá‹«" onerror="this.style.display='none';this.parentNode.innerHTML='ðŸ›ï¸';">
     </div>
     <div>
-      <div class="org-name">ወልድያ ከተማ<br>አስተዳደር</div>
-      <div class="org-sub">Innovation &amp; Tech · EDMS</div>
+      <div class="org-name">á‹ˆáˆá‹µá‹« áŠ¨á‰°áˆ›<br>áŠ áˆµá‰°á‹³á‹°áˆ­</div>
+      <div class="org-sub">Innovation &amp; Tech Â· EDMS</div>
     </div>
     <button id="toggle-btn" onclick="toggleSidebar()" title="Minimize sidebar">
       <i class="bi bi-layout-sidebar fs-5"></i>
@@ -277,76 +277,76 @@
   </div>
 
   <ul class="nav flex-column mt-1 pb-3">
-    <li><span class="sb-section">ዋና ምናሌ</span></li>
+    <li><span class="sb-section">á‹‹áŠ“ áˆáŠ“áˆŒ</span></li>
     <li><a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
-      <i class="bi bi-speedometer2"></i> ዳሽቦርድ
+      <i class="bi bi-speedometer2"></i> á‹³áˆ½á‰¦áˆ­á‹µ
     </a></li>
 
-    <li><span class="sb-section">ደብዳቤዎች</span></li>
+    <li><span class="sb-section">á‹°á‰¥á‹³á‰¤á‹Žá‰½</span></li>
     <li><a href="{% url 'document_list' %}" class="nav-link {% if request.resolver_match.url_name == 'document_list' %}active{% endif %}">
-      <i class="bi bi-files"></i> ሁሉም ደብዳቤዎች
+      <i class="bi bi-files"></i> áˆáˆ‰áˆ á‹°á‰¥á‹³á‰¤á‹Žá‰½
     </a></li>
     <li><a href="{% url 'inbox' %}" class="nav-link {% if request.resolver_match.url_name == 'inbox' %}active{% endif %}">
-      <i class="bi bi-inbox-fill" style="color:#ffd54f"></i> ገቢ መልዕክቶች
+      <i class="bi bi-inbox-fill" style="color:#ffd54f"></i> áŒˆá‰¢ áˆ˜áˆá‹•áŠ­á‰¶á‰½
       {% if inbox_unread %}<span class="badge bg-warning text-dark ms-auto" style="font-size:.6rem;">{{ inbox_unread }}</span>{% endif %}
     </a></li>
     <li><a href="{% url 'document_list' %}?doc_type=INCOMING" class="nav-link">
-      <i class="bi bi-inbox-fill" style="color:#90caf9"></i> ገቢ ደብዳቤ
+      <i class="bi bi-inbox-fill" style="color:#90caf9"></i> áŒˆá‰¢ á‹°á‰¥á‹³á‰¤
     </a></li>
     <li><a href="{% url 'document_list' %}?doc_type=OUTGOING" class="nav-link">
-      <i class="bi bi-send-fill" style="color:#ce93d8"></i> ወጪ ደብዳቤ
+      <i class="bi bi-send-fill" style="color:#ce93d8"></i> á‹ˆáŒª á‹°á‰¥á‹³á‰¤
     </a></li>
     <li><a href="{% url 'document_list' %}?doc_type=INTERNAL" class="nav-link">
-      <i class="bi bi-journal-text" style="color:#80cbc4"></i> የውስጥ ማስታወሻ
+      <i class="bi bi-journal-text" style="color:#80cbc4"></i> á‹¨á‹áˆµáŒ¥ áˆ›áˆµá‰³á‹ˆáˆ»
     </a></li>
 
-    <li><span class="sb-section">ሁኔታ</span></li>
+    <li><span class="sb-section">áˆáŠ”á‰³</span></li>
     <li><a href="{% url 'document_list' %}?status=PENDING" class="nav-link">
-      <i class="bi bi-hourglass-split" style="color:#ffcc80"></i> በጥበቃ ላይ
+      <i class="bi bi-hourglass-split" style="color:#ffcc80"></i> á‰ áŒ¥á‰ á‰ƒ áˆ‹á‹­
     </a></li>
     <li><a href="{% url 'document_list' %}?status=IN_PROGRESS" class="nav-link">
-      <i class="bi bi-arrow-repeat" style="color:#90caf9"></i> በሂደት ላይ
+      <i class="bi bi-arrow-repeat" style="color:#90caf9"></i> á‰ áˆ‚á‹°á‰µ áˆ‹á‹­
     </a></li>
     <li><a href="{% url 'overdue_documents' %}" class="nav-link">
-      <i class="bi bi-alarm-fill" style="color:#ef9a9a"></i> ጊዜ ያለፋቸው
+      <i class="bi bi-alarm-fill" style="color:#ef9a9a"></i> áŒŠá‹œ á‹«áˆˆá‹á‰¸á‹
       {% if overdue_count %}<span class="badge bg-danger ms-auto" style="font-size:.6rem;">{{ overdue_count }}</span>{% endif %}
     </a></li>
 
     <li><hr class="sb-divider"></li>
     <li><a href="{% url 'document_create' %}" class="nav-link">
-      <i class="bi bi-plus-circle-fill" style="color:#a5d6a7"></i> አዲስ ደብዳቤ
+      <i class="bi bi-plus-circle-fill" style="color:#a5d6a7"></i> áŠ á‹²áˆµ á‹°á‰¥á‹³á‰¤
     </a></li>
     <li><a href="{% url 'qr_scanner' %}" class="nav-link {% if request.resolver_match.url_name == 'qr_scanner' %}active{% endif %}">
       <i class="bi bi-qr-code-scan" style="color:#ffd54f"></i> QR Scanner
     </a></li>
     {% if user_can_create %}
     <li><a href="{% url 'my_documents' %}" class="nav-link {% if request.resolver_match.url_name == 'my_documents' %}active{% endif %}">
-      <i class="bi bi-person-lines-fill" style="color:#80cbc4"></i> የእኔ ደብዳቤዎች
+      <i class="bi bi-person-lines-fill" style="color:#80cbc4"></i> á‹¨áŠ¥áŠ” á‹°á‰¥á‹³á‰¤á‹Žá‰½
     </a></li>
     {% endif %}
     <li><a href="{% url 'category_list' %}" class="nav-link {% if 'category' in request.resolver_match.url_name %}active{% endif %}">
-      <i class="bi bi-tags-fill" style="color:#ffab91"></i> ምድቦች
+      <i class="bi bi-tags-fill" style="color:#ffab91"></i> áˆá‹µá‰¦á‰½
     </a></li>
 
-    <li><span class="sb-section">ትንተና</span></li>
+    <li><span class="sb-section">á‰µáŠ•á‰°áŠ“</span></li>
     <li><a href="{% url 'audit_trail' %}" class="nav-link {% if request.resolver_match.url_name == 'audit_trail' %}active{% endif %}">
       <i class="bi bi-journal-check" style="color:#80deea"></i> Audit Trail
     </a></li>
     {% if user_is_admin %}
     <li><a href="{% url 'reports' %}" class="nav-link {% if request.resolver_match.url_name == 'reports' %}active{% endif %}">
-      <i class="bi bi-bar-chart-fill" style="color:#80cbc4"></i> ሪፖርት
+      <i class="bi bi-bar-chart-fill" style="color:#80cbc4"></i> áˆªá–áˆ­á‰µ
     </a></li>
     {% endif %}
 
-    <li><span class="sb-section">ፈጠራ እና አቅም</span></li>
+    <li><span class="sb-section">áˆáŒ áˆ« áŠ¥áŠ“ áŠ á‰…áˆ</span></li>
     <li><a href="{% url 'capacity_building' %}" class="nav-link {% if request.resolver_match.url_name == 'capacity_building' %}active{% endif %}">
-      <i class="bi bi-lightbulb-fill" style="color:#ffd54f"></i> አቅም ግንባታ
+      <i class="bi bi-lightbulb-fill" style="color:#ffd54f"></i> áŠ á‰…áˆ áŒáŠ•á‰£á‰³
     </a></li>
 
     {% if request.user.is_staff %}
     <li><hr class="sb-divider"></li>
     <li><a href="{% url 'user_management' %}" class="nav-link {% if request.resolver_match.url_name == 'user_management' %}active{% endif %}">
-      <i class="bi bi-people-fill" style="color:#ce93d8"></i> ተጠቃሚዎች
+      <i class="bi bi-people-fill" style="color:#ce93d8"></i> á‰°áŒ á‰ƒáˆšá‹Žá‰½
     </a></li>
     <li><a href="/admin/" class="nav-link">
       <i class="bi bi-shield-lock-fill" style="color:#ffcc80"></i> Admin Panel
@@ -361,18 +361,18 @@
     <span style="font-size:.68rem;padding:2px 7px;border-radius:10px;
       background:{% if user_is_admin %}#c62828{% elif user_is_registrar %}#1565c0{% else %}#546e7a{% endif %};
       color:#fff;display:inline-block;margin-top:3px;">
-      {% if user_is_admin %}አስተዳዳሪ{% elif user_is_registrar %}ሰናዳ{% else %}ተመልካች{% endif %}
+      {% if user_is_admin %}áŠ áˆµá‰°á‹³á‹³áˆª{% elif user_is_registrar %}áˆ°áŠ“á‹³{% else %}á‰°áˆ˜áˆáŠ«á‰½{% endif %}
     </span>
     <a href="{% url 'profile' %}" class="d-block mt-1">
-      <i class="bi bi-person-gear me-1"></i>መገለጫ
+      <i class="bi bi-person-gear me-1"></i>áˆ˜áŒˆáˆˆáŒ«
     </a>
     <a href="{% url 'logout' %}" class="d-block mt-1">
-      <i class="bi bi-box-arrow-left me-1"></i>ውጣ
+      <i class="bi bi-box-arrow-left me-1"></i>á‹áŒ£
     </a>
   </div>
 </nav>
 
-<!-- ════ MAIN ════ -->
+<!-- â•â•â•â• MAIN â•â•â•â• -->
 <div id="main">
 
   <!-- Topbar -->
@@ -382,12 +382,12 @@
     </button>
     <div class="page-title">
       {% block page_title %}EDMS{% endblock %}
-      <small>{% block page_subtitle %}ወልድያ ከተማ አስተዳደር{% endblock %}</small>
+      <small>{% block page_subtitle %}á‹ˆáˆá‹µá‹« áŠ¨á‰°áˆ› áŠ áˆµá‰°á‹³á‹°áˆ­{% endblock %}</small>
     </div>
 
     <!-- Urgent badge -->
     {% if urgent_count %}
-    <span class="badge bg-danger d-none d-lg-inline-flex align-items-center gap-1 no-print" title="አስቸኳይ ደብዳቤዎች">
+    <span class="badge bg-danger d-none d-lg-inline-flex align-items-center gap-1 no-print" title="áŠ áˆµá‰¸áŠ³á‹­ á‹°á‰¥á‹³á‰¤á‹Žá‰½">
       <i class="bi bi-lightning-fill"></i> {{ urgent_count }}
     </span>
     {% endif %}
@@ -405,19 +405,19 @@
     <!-- Today badge -->
     {% if today_count %}
     <span class="badge bg-success d-none d-md-inline-flex align-items-center gap-1 no-print">
-      <i class="bi bi-plus-circle"></i> {{ today_count }} ዛሬ
+      <i class="bi bi-plus-circle"></i> {{ today_count }} á‹›áˆ¬
     </span>
     {% endif %}
 
     <!-- Quick add -->
     <a href="{% url 'document_create' %}" class="btn btn-gold btn-sm d-none d-sm-inline-flex align-items-center gap-1 no-print">
-      <i class="bi bi-plus-lg"></i> አዲስ
+      <i class="bi bi-plus-lg"></i> áŠ á‹²áˆµ
     </a>
     <!-- PWA Install button (shown only when installable) -->
     <button id="pwa-install-btn" onclick="installPWA()"
             class="btn btn-sm btn-outline-light d-none d-sm-inline-flex align-items-center gap-1 no-print"
             style="display:none !important;border-color:var(--brand-gold);color:var(--brand-gold);"
-            title="App ሆኖ ጫን">
+            title="App áˆ†áŠ– áŒ«áŠ•">
       <i class="bi bi-phone"></i>
     </button>
 
@@ -434,7 +434,7 @@
         {% endif %}
         <li><hr class="dropdown-divider"></li>
         <li><a class="dropdown-item text-danger" href="{% url 'logout' %}">
-          <i class="bi bi-box-arrow-left me-2"></i>ውጣ
+          <i class="bi bi-box-arrow-left me-2"></i>á‹áŒ£
         </a></li>
       </ul>
     </div>
@@ -459,7 +459,7 @@
 
   <footer class="text-center text-muted py-3 no-print"
           style="font-size:.71rem;border-top:1px solid #e2e8f0;background:#fff;">
-    ወልድያ ከተማ አስተዳደር — ፈጠራ እና ቴክኖሎጂ ቡድን &nbsp;|&nbsp; EDMS &copy; 2019 ዓ.ም
+    á‹ˆáˆá‹µá‹« áŠ¨á‰°áˆ› áŠ áˆµá‰°á‹³á‹°áˆ­ â€” áˆáŒ áˆ« áŠ¥áŠ“ á‰´áŠ­áŠ–áˆŽáŒ‚ á‰¡á‹µáŠ• &nbsp;|&nbsp; EDMS &copy; 2019 á‹“.áˆ
   </footer>
 </div>
 
@@ -494,7 +494,7 @@
       });
     }
   }
-  // ── Sidebar mobile toggle ──────────────────────────────────────────
+  // â”€â”€ Sidebar mobile toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function openSidebar() {
     document.getElementById('sidebar').classList.add('show');
     document.getElementById('sb-overlay').classList.add('show');
@@ -506,7 +506,7 @@
     document.body.style.overflow = '';
   }
 
-  // ── Sidebar minimize/expand (desktop) ─────────────────────────────
+  // â”€â”€ Sidebar minimize/expand (desktop) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function toggleSidebar() {
     const mini = document.body.classList.toggle('sb-mini');
     localStorage.setItem('sb_mini', mini ? '1' : '0');
@@ -550,6 +550,8 @@
     });
   });
 </script>
+
 {% block extra_js %}{% endblock %}
 </body>
 </html>
+
