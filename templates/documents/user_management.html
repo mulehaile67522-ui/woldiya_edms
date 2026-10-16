@@ -66,6 +66,11 @@
             <a href="{% url 'reset_user_password' u.pk %}" class="btn btn-warning btn-sm py-0 px-2" title="Reset Password">
               <i class="bi bi-key-fill"></i>
             </a>
+            {% if u == request.user %}
+            <a href="{% url 'change_password' %}" class="btn btn-info btn-sm py-0 px-2" title="Change My Password">
+              <i class="bi bi-lock-fill"></i>
+            </a>
+            {% endif %}
           </td>
         </tr>
         {% empty %}
