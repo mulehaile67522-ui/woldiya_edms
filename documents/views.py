@@ -1269,3 +1269,49 @@ def qr_scanner(request):
         return redirect('qr_scanner')
 
     return render(request, 'documents/qr_scanner.html')
+
+
+# ──────────────────────────── ADMIN RESET PASSWORD ───────────────────
+
+@login_required
+def reset_user_password(request, user_id):
+    """Admin resets any user's password."""
+    if not (request.user.is_staff or request.user.is_superuser):
+        messages.error(request, 'Permission denied.')
+        return redirect('dashboard')
+
+    target = get_object_or_404(User, pk=user_id)
+
+    if request.method == 'POST':
+        new_pw  = request.POST.get('new_password', '').strip()
+        confirm = request.POST.get('confirm_password', '').strip()
+
+        if len(new_pw) < 6:
+            messages.error(request, 'Password must be at least 6 characters.')
+        elif new_pw != confirm:
+            messages.error(request, 'Passwords do not match.')
+        else:
+            target.set_password(new_pw)
+            target.save()
+            # Send email notification
+            if target.email:
+                try:
+                    from django.core.mail import send_mail
+                    send_mail(
+                        'Your EDMS Password Has Been Reset',
+                        f'Dear {target.get_full_name() or target.username},\n\n'
+                        f'Your password has been reset by the administrator.\n\n'
+                        f'New password: {new_pw}\n\n'
+                        f'Please login and change your password immediately.\n\n'
+                        f'Website: https://muleedms.pythonanywhere.com\n\n'
+                        f'Woldiya City Administration EDMS',
+                        settings.DEFAULT_FROM_EMAIL,
+                        [target.email],
+                        fail_silently=True,
+                    )
+                except Exception:
+                    pass
+            messages.success(request, f'Password for "{target.username}" reset successfully!')
+            return redirect('user_management')
+
+    return render(request, 'documents/reset_password.html', {'target': target})

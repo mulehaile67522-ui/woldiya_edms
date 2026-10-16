@@ -61,4 +61,5 @@ urlpatterns = [
     path('inbox/<int:pk>/read/',             views.mark_forward_read,  name='mark_forward_read'),
     path('change-password/',                 views.change_password,    name='change_password'),
     path('scanner/',                         views.qr_scanner,         name='qr_scanner'),
+    path('users/<int:user_id>/reset-password/', views.reset_user_password, name='reset_user_password'),
 ]
