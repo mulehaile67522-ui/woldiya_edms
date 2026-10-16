@@ -3,6 +3,66 @@ import io
 import os
 
 
+# ── Ethiopian Calendar ────────────────────────────────────────────────
+ET_MONTHS = [
+    'መስከረም', 'ጥቅምት', 'ህዳር', 'ታህሳስ',
+    'ጥር', 'የካቲት', 'መጋቢት', 'ሚያዚያ',
+    'ግንቦት', 'ሰኔ', 'ሐምሌ', 'ነሐሴ', 'ጳጉሜ',
+]
+
+
+def to_ethiopian(date):
+    """
+    Convert a Gregorian date to Ethiopian calendar.
+    Returns a dict with year, month, day, month_name, full string.
+    """
+    import datetime
+    if not date:
+        return None
+    if hasattr(date, 'date'):
+        date = date.date()
+
+    # Ethiopian New Year falls on Sep 11 (or Sep 12 in leap years)
+    gc_year  = date.year
+    gc_month = date.month
+    gc_day   = date.day
+
+    # Ethiopian year offset
+    et_year = gc_year - 8 if gc_month >= 9 else gc_year - 9
+
+    # Calculate Ethiopian month and day
+    # Ethiopian calendar starts Sep 11 (Gregorian)
+    import datetime as dt
+    et_new_year = dt.date(gc_year if gc_month >= 9 else gc_year - 1, 9, 11)
+
+    delta = (date - et_new_year).days
+    et_month = delta // 30 + 1
+    et_day   = delta % 30 + 1
+
+    if et_month > 13:
+        et_month = 13
+    if et_day > 30:
+        et_day = 30
+
+    month_name = ET_MONTHS[et_month - 1] if 1 <= et_month <= 13 else ''
+    full = f'{et_day} {month_name} {et_year} ዓ.ም'
+
+    return {
+        'year':       et_year,
+        'month':      et_month,
+        'day':        et_day,
+        'month_name': month_name,
+        'full':       full,
+        'short':      f'{et_day}/{et_month}/{et_year}',
+    }
+
+
+def ethiopian_date_str(date):
+    """Return Ethiopian date as string like: 5 መስከረም 2017 ዓ.ም"""
+    result = to_ethiopian(date)
+    return result['full'] if result else ''
+
+
 def generate_reference_number(doc_type='INCOMING'):
     """
     Auto-generate a reference number in format:

@@ -827,6 +827,41 @@ def my_documents(request):
     })
 
 
+# ──────────────────────────── WELCOME EMAIL ──────────────────────────
+
+def _send_welcome_email(user, username, password, department, role):
+    """Send welcome email to newly created user with login credentials."""
+    try:
+        from django.core.mail import send_mail
+        role_display = {
+            'ADMIN': 'Administrator', 'REGISTRAR': 'Registrar', 'VIEWER': 'Viewer',
+        }.get(role, role)
+        subject = 'Welcome to Woldiya City Administration EDMS'
+        message = f"""Dear {user.get_full_name() or username},
+
+Your account has been created on the Woldiya City Administration EDMS.
+
+Login Details:
+  Website:    https://muleedms.pythonanywhere.com
+  Username:   {username}
+  Password:   {password}
+  Role:       {role_display}
+  Department: {department or 'Not assigned'}
+
+Please login and change your password immediately.
+
+Woldiya City Administration — Innovation & Technology Group
+"""
+        send_mail(
+            subject, message,
+            getattr(settings, 'DEFAULT_FROM_EMAIL', 'edms@woldiya.gov.et'),
+            [user.email],
+            fail_silently=True,
+        )
+    except Exception:
+        pass
+
+
 # ──────────────────────────── CREATE USER ────────────────────────────
 
 @login_required
@@ -883,7 +918,11 @@ def create_user_view(request):
         profile.phone      = phone
         profile.save()
 
-        messages.success(request, f'ተጠቃሚ "{username}" ({first_name} {last_name}) ተፈጠረ!')
+        # Send welcome email if user has email
+        if email:
+            _send_welcome_email(user, username, password, department, role)
+
+        messages.success(request, f'User "{username}" ({first_name} {last_name}) created!')
         return redirect('user_management')
 
     return render(request, 'documents/create_user.html', {

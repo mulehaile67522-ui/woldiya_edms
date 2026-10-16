@@ -1,4 +1,5 @@
 {% extends "documents/base.html" %}
+{% load et_date %}
 {% block title %}ደብዳቤዎች — ወልድያ EDMS{% endblock %}
 {% block page_title %}ሁሉም ደብዳቤዎች{% endblock %}
 {% block page_subtitle %}{{ total_results }} ደብዳቤ ተገኝቷል{% endblock %}
@@ -165,6 +166,7 @@
           </td>
           <td class="text-muted" style="font-size:.82rem; white-space:nowrap;">
             {{ doc.created_at|date:"d/m/Y" }}
+            <div style="font-size:.7rem;color:#94a3b8;">{{ doc.created_at|et_date_short }}</div>
           </td>
           <td>
             {% if doc.due_date %}

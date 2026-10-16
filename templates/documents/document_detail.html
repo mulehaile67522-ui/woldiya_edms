@@ -1,5 +1,6 @@
 {% extends "documents/base.html" %}
 {% load static %}
+{% load et_date %}
 {% block title %}{{ doc.reference_number }} — ወልድያ EDMS{% endblock %}
 {% block page_title %}{{ doc.title|truncatechars:55 }}{% endblock %}
 {% block page_subtitle %}ቁጥር: {{ doc.reference_number }}{% endblock %}
@@ -102,6 +103,7 @@
         <div>
           <div class="text-muted small mb-1">የደረሰበት ቀን</div>
           <div>{{ doc.date_received }}</div>
+          <div class="text-muted small">{{ doc.date_received|et_date }}</div>
         </div>
         {% endif %}
         {% if doc.due_date %}
@@ -125,6 +127,7 @@
       <div class="row g-2 pt-3 border-top" style="font-size:.8rem;">
         <div class="col-6 col-md-4">
           <span class="text-muted">የተመዘገበ:</span> {{ doc.created_at|date:"d/m/Y H:i" }}
+          <div class="text-muted" style="font-size:.72rem;">{{ doc.created_at|et_date }}</div>
         </div>
         <div class="col-6 col-md-4">
           <span class="text-muted">ዘምኗል:</span> {{ doc.updated_at|date:"d/m/Y H:i" }}
