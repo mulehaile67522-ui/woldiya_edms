@@ -5,10 +5,21 @@ import os
 
 
 # ── Ethiopian Calendar ────────────────────────────────────────────────
+# Ethiopian month names using Unicode escapes to prevent encoding corruption
 ET_MONTHS = [
-    'መስከረም', 'ጥቅምት', 'ህዳር', 'ታህሳስ',
-    'ጥር', 'የካቲት', 'መጋቢት', 'ሚያዚያ',
-    'ግንቦት', 'ሰኔ', 'ሐምሌ', 'ነሐሴ', 'ጳጉሜ',
+    '\u1218\u1235\u12a8\u1228\u121d',  # Meskerem
+    '\u1325\u1245\u121d\u1275',          # Tikimt
+    '\u1215\u12f3\u122d',                # Hidar
+    '\u1273\u1215\u1233\u1235',          # Tahsas
+    '\u1325\u122d',                      # Tir
+    '\u12e8\u12ab\u1272\u1275',          # Yekatit
+    '\u1218\u130b\u2262\u1275',          # Megabit
+    '\u121a\u12eb\u12da\u12eb',          # Miyazya
+    '\u130d\u1295\u1266\u1275',          # Ginbot
+    '\u1230\u1290',                      # Sene
+    '\u1220\u121d\u1208',                # Hamle
+    '\u1290\u1240\u1230',                # Nehase
+    '\u1333\u1309\u121c',                # Pagume
 ]
 
 
@@ -46,7 +57,7 @@ def to_ethiopian(date):
         et_day = 30
 
     month_name = ET_MONTHS[et_month - 1] if 1 <= et_month <= 13 else ''
-    full = f'{et_day} {month_name} {et_year} ዓ.ም'
+    full = f'{et_day} {month_name} {et_year} \u12d3.\u121d'
 
     return {
         'year':       et_year,
