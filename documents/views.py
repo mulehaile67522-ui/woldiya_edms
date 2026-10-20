@@ -276,9 +276,21 @@ def document_update(request, pk):
 def document_delete(request, pk):
     doc = get_object_or_404(Document, pk=pk)
     if request.method == 'POST':
-        title = doc.title
+        title  = doc.title
+        ref    = doc.reference_number
+        reason = request.POST.get('reason', '').strip()
+        # Save deletion record BEFORE deleting
+        from .models import DeletionLog
+        DeletionLog.objects.create(
+            reference_number = ref,
+            title            = title,
+            doc_type         = doc.doc_type,
+            department       = doc.department,
+            deleted_by       = request.user,
+            reason           = reason,
+        )
         doc.delete()
-        messages.warning(request, f'ደብዳቤ "{title}" ተሰርዟል።')
+        messages.warning(request, f'Document "{title}" ({ref}) deleted.')
         return redirect('document_list')
     return render(request, 'documents/document_confirm_delete.html', {'doc': doc})
 
@@ -466,10 +478,14 @@ def audit_trail(request):
     paginator = Paginator(logs, 30)
     page_obj  = paginator.get_page(request.GET.get('page'))
     users     = User.objects.filter(is_active=True).order_by('username')
+    # Include deletion logs
+    from .models import DeletionLog
+    deletion_logs = DeletionLog.objects.select_related('deleted_by').order_by('-deleted_at')[:50]
     return render(request, 'documents/audit_trail.html', {
         'page_obj': page_obj, 'users': users,
         'filter_user': user_q, 'filter_action': action_q,
         'filter_date_from': date_f, 'filter_date_to': date_t,
+        'deletion_logs': deletion_logs,
     })
 
 

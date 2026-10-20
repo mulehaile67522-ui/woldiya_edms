@@ -310,3 +310,27 @@ class DocumentAttachment(models.Model):
     @property
     def is_image(self):
         return self.filename.lower().rsplit('.', 1)[-1] in ['jpg', 'jpeg', 'png', 'gif', 'bmp']
+
+
+# ──────────────────────────────────────────────
+#  DELETION LOG (survives document deletion)
+# ──────────────────────────────────────────────
+
+class DeletionLog(models.Model):
+    """Records document deletions — persists even after document is gone."""
+    reference_number = models.CharField(max_length=100, verbose_name='የደብዳቤ ቁጥር')
+    title            = models.CharField(max_length=255, verbose_name='ርዕስ')
+    doc_type         = models.CharField(max_length=10, blank=True)
+    department       = models.CharField(max_length=100, blank=True)
+    deleted_by       = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                          related_name='deletions', verbose_name='የሰረዘው')
+    deleted_at       = models.DateTimeField(auto_now_add=True, verbose_name='የተሰረዘበት ጊዜ')
+    reason           = models.TextField(blank=True, verbose_name='ምክንያት')
+
+    class Meta:
+        ordering            = ['-deleted_at']
+        verbose_name        = 'የስረዛ ታሪክ'
+        verbose_name_plural = 'የስረዛ ታሪኮች'
+
+    def __str__(self):
+        return f"DELETED: {self.reference_number} by {self.deleted_by}"
