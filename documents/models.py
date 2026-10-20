@@ -117,8 +117,11 @@ class Document(models.Model):
         ('INTERNAL', 'የውስጥ ማስታወሻ'),
     ]
     STATUS_CHOICES = [
+        ('DRAFT',       'ረቂቅ'),
         ('PENDING',     'በመጠባበቅ ላይ'),
         ('IN_PROGRESS', 'በሂደት ላይ'),
+        ('UNDER_REVIEW','በዳኝነት ላይ'),
+        ('APPROVED',    'ጸድቋል'),
         ('COMPLETED',   'ተጠናቋል'),
         ('ARCHIVED',    'ተቀምጧል'),
     ]
@@ -272,3 +275,38 @@ class DocumentForward(models.Model):
 
     def __str__(self):
         return f"{self.document.reference_number} → {self.to_department or self.to_user}"
+
+
+# ──────────────────────────────────────────────
+#  DOCUMENT ATTACHMENT (multiple files per doc)
+# ──────────────────────────────────────────────
+
+class DocumentAttachment(models.Model):
+    document    = models.ForeignKey(Document, on_delete=models.CASCADE,
+                                     related_name='attachments', verbose_name='ደብዳቤ')
+    file        = models.FileField(upload_to='attachments/%Y/%m/', verbose_name='ፋይል')
+    description = models.CharField(max_length=200, blank=True, verbose_name='መግለጫ')
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                     verbose_name='የሰቀለው')
+    uploaded_at = models.DateTimeField(auto_now_add=True, verbose_name='የሰቀለበት ጊዜ')
+
+    class Meta:
+        ordering            = ['-uploaded_at']
+        verbose_name        = 'ተያያዥ ፋይል'
+        verbose_name_plural = 'ተያያዥ ፋይሎች'
+
+    def __str__(self):
+        return f"{self.document.reference_number} - {self.file.name}"
+
+    @property
+    def filename(self):
+        import os
+        return os.path.basename(self.file.name)
+
+    @property
+    def is_pdf(self):
+        return self.filename.lower().endswith('.pdf')
+
+    @property
+    def is_image(self):
+        return self.filename.lower().rsplit('.', 1)[-1] in ['jpg', 'jpeg', 'png', 'gif', 'bmp']

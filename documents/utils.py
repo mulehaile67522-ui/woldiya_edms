@@ -60,8 +60,9 @@ def ethiopian_date_str(date):
 
 
 def generate_reference_number(doc_type='INCOMING'):
-    """Auto-generate reference number: W.K.A/type/0001/2026"""
+    """Auto-generate reference number with transaction lock to prevent race conditions."""
     from .models import Document
+    from django.db import transaction
 
     prefixes = {
         'INCOMING': '\u12c8.\u12a8.\u12a0/\u1308\u2262',
@@ -71,10 +72,11 @@ def generate_reference_number(doc_type='INCOMING'):
     prefix = prefixes.get(doc_type, '\u12c8.\u12a8.\u12a0')
     year   = timezone.now().year
 
-    count = Document.objects.filter(
-        doc_type=doc_type,
-        created_at__year=year,
-    ).count()
+    with transaction.atomic():
+        count = Document.objects.select_for_update().filter(
+            doc_type=doc_type,
+            created_at__year=year,
+        ).count()
 
     seq = str(count + 1).zfill(4)
     return f"{prefix}/{seq}/{year}"

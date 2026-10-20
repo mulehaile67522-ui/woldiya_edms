@@ -35,7 +35,10 @@ def login_view(request):
 
 
 def logout_view(request):
-    logout(request)
+    if request.method == 'POST':
+        logout(request)
+    else:
+        logout(request)  # allow GET too for backward compatibility
     return redirect('login')
 
 
@@ -247,7 +250,7 @@ def document_create(request):
 # ──────────────────────────── UPDATE ─────────────────────────────────
 
 @login_required
-@admin_required
+@registrar_required
 def document_update(request, pk):
     doc        = get_object_or_404(Document, pk=pk)
     old_status = doc.status
@@ -351,6 +354,16 @@ def overdue_documents(request):
     today = timezone.localdate()
     docs  = Document.objects.filter(due_date__lt=today).exclude(
                 status__in=['COMPLETED', 'ARCHIVED']).order_by('due_date')
+    # Department scoping
+    is_admin = request.user.is_superuser or request.user.is_staff
+    if not is_admin:
+        try:
+            role      = request.user.profile.role
+            user_dept = request.user.profile.department.strip()
+        except Exception:
+            role = 'VIEWER'; user_dept = ''
+        if role != 'ADMIN':
+            docs = docs.filter(department=user_dept) if user_dept else docs.filter(created_by=request.user)
     return render(request, 'documents/overdue.html', {'docs': docs, 'today': today})
 
 
@@ -405,6 +418,7 @@ def mark_all_notifications_read(request):
 # ──────────────────────────── AUDIT TRAIL ────────────────────────────
 
 @login_required
+@admin_required
 def audit_trail(request):
     logs = ActivityLog.objects.select_related('document', 'user').order_by('-timestamp')
 
@@ -462,6 +476,7 @@ def audit_trail(request):
 # ──────────────────────────── REPORTS ────────────────────────────────
 
 @login_required
+@admin_required
 def reports(request):
     today = timezone.localdate()
     docs  = Document.objects.all()
@@ -1315,3 +1330,55 @@ def reset_user_password(request, user_id):
             return redirect('user_management')
 
     return render(request, 'documents/reset_password.html', {'target': target})
+
+
+# ──────────────────────────── ATTACHMENTS ────────────────────────────
+
+@login_required
+@registrar_required
+@require_POST
+def upload_attachment(request, pk):
+    """Upload additional files to a document."""
+    from .models import DocumentAttachment
+    doc  = get_object_or_404(Document, pk=pk)
+    file = request.FILES.get('file')
+    desc = request.POST.get('description', '').strip()
+
+    if not file:
+        messages.error(request, 'No file selected.')
+        return redirect('document_detail', pk=pk)
+
+    # Validate extension
+    ext     = file.name.rsplit('.', 1)[-1].lower()
+    allowed = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'tiff', 'bmp', 'doc', 'docx']
+    if ext not in allowed:
+        messages.error(request, f'File type .{ext} not allowed.')
+        return redirect('document_detail', pk=pk)
+
+    if file.size > 20 * 1024 * 1024:
+        messages.error(request, 'File exceeds 20MB limit.')
+        return redirect('document_detail', pk=pk)
+
+    DocumentAttachment.objects.create(
+        document=doc,
+        file=file,
+        description=desc,
+        uploaded_by=request.user,
+    )
+    log_activity(doc, request.user, 'Attachment uploaded', f'"{file.name}" added.')
+    messages.success(request, f'File "{file.name}" uploaded successfully!')
+    return redirect('document_detail', pk=pk)
+
+
+@login_required
+@admin_required
+def delete_attachment(request, pk, att_id):
+    """Delete an attachment from a document."""
+    from .models import DocumentAttachment
+    att = get_object_or_404(DocumentAttachment, pk=att_id, document_id=pk)
+    if request.method == 'POST':
+        name = att.filename
+        att.file.delete(save=False)
+        att.delete()
+        messages.warning(request, f'Attachment "{name}" deleted.')
+    return redirect('document_detail', pk=pk)

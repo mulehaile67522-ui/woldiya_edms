@@ -62,4 +62,6 @@ urlpatterns = [
     path('change-password/',                 views.change_password,    name='change_password'),
     path('scanner/',                         views.qr_scanner,         name='qr_scanner'),
     path('users/<int:user_id>/reset-password/', views.reset_user_password, name='reset_user_password'),
+    path('documents/<int:pk>/attachments/upload/', views.upload_attachment,  name='upload_attachment'),
+    path('documents/<int:pk>/attachments/<int:att_id>/delete/', views.delete_attachment, name='delete_attachment'),
 ]
