@@ -1321,13 +1321,35 @@ def official_letter_pdf(request, pk):
         # FOOTER
         # ══════════════════════════════════════════════════════════
         story.append(Spacer(1, 24))
-        story.append(HRFlowable(width='100%', color=GOLD, thickness=2, spaceAfter=4))
-        story.append(HRFlowable(width='100%', color=BRAND, thickness=1, spaceAfter=4))
-        story.append(Paragraph(
-            f'ወልድያ ከተማ አስተዳደር — ፈጠራ እና ቴክኖሎጂ ቡድን &nbsp;|&nbsp; EDMS &nbsp;|&nbsp; '
-            f'ህትመት ቀን: {gc_str} ({et_str}) &nbsp;|&nbsp; ቁጥር: {doc.reference_number}',
-            sty('footer', size=7.5, color=BRAND, align=1, space_after=0)
-        ))
+        story.append(HRFlowable(width='100%', color=GOLD, thickness=3, spaceAfter=2))
+        story.append(HRFlowable(width='100%', color=BRAND, thickness=1.5, spaceAfter=6))
+
+        footer_table = Table([[
+            Paragraph(
+                f'<b>ወልድያ ከተማ አስተዳደር</b><br/>'
+                f'<font size="7">WOLDIYA CITY ADMINISTRATION</font>',
+                sty('ft1', size=8, color=BRAND, align=0, leading=11, space_after=0)
+            ),
+            Paragraph(
+                f'<font size="7">ፈጠራ እና ቴክኖሎጂ ቡድን | EDMS</font><br/>'
+                f'<font size="7">muleedms.pythonanywhere.com</font>',
+                sty('ft2', size=8, color=BRAND, align=1, leading=11, space_after=0)
+            ),
+            Paragraph(
+                f'<b>ቁጥር:</b> {doc.reference_number}<br/>'
+                f'<font size="7">ህትመት: {gc_str}</font>',
+                sty('ft3', size=8, color=BRAND, align=2, leading=11, space_after=0)
+            ),
+        ]], colWidths=[PW/3, PW/3, PW/3])
+        footer_table.setStyle(TableStyle([
+            ('TOPPADDING',   (0,0), (-1,-1), 4),
+            ('BOTTOMPADDING',(0,0), (-1,-1), 4),
+            ('LEFTPADDING',  (0,0), (-1,-1), 0),
+            ('RIGHTPADDING', (0,0), (-1,-1), 0),
+            ('VALIGN',       (0,0), (-1,-1), 'TOP'),
+        ]))
+        story.append(footer_table)
+        story.append(HRFlowable(width='100%', color=GOLD, thickness=1.5, spaceBefore=4))
 
         # ── Build and return ───────────────────────────────────────
         page.build(story)
