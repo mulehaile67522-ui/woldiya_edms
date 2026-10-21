@@ -1291,22 +1291,29 @@ def official_letter_pdf(request, pk):
         story.append(summary)
 
         # ══════════════════════════════════════════════════════════
+        # ══════════════════════════════════════════════════════════
         # SIGNATURE AREA (pushed to bottom)
         # ══════════════════════════════════════════════════════════
         story.append(Spacer(1, 60))
 
-        sig_line = '________________________________'
+        creator_name = doc.created_by.get_full_name() or doc.created_by.username if doc.created_by else ''
         sig = Table([[
-            Paragraph(f'{sig_line}<br/><b>የሰነዱ አዘጋጅ ፊርማ</b><br/><font size="8">{doc.created_by.get_full_name() or doc.created_by.username if doc.created_by else ""}</font>',
-                       sty('sig1', size=10, align=1, leading=14, space_after=0)),
-            Paragraph(f'{sig_line}<br/><b>ኃላፊ / አፅዳቂ ፊርማ</b>',
-                       sty('sig2', size=10, align=1, leading=14, space_after=0)),
-            Paragraph(f'{sig_line}<br/><b>ቀን / Date</b><br/><font size="8">{gc_str}</font>',
-                       sty('sig3', size=10, align=1, leading=14, space_after=0)),
+            Paragraph(f'<b>የሰነዱ አዘጋጅ ፊርማ</b><br/><font size="8">{creator_name}</font>',
+                       sty('sig1', size=10, align=1, leading=16, space_after=0)),
+            Paragraph(f'<b>ኃላፊ / አፅዳቂ ፊርማ</b>',
+                       sty('sig2', size=10, align=1, leading=16, space_after=0)),
+            Paragraph(f'<b>ቀን / Date</b><br/><font size="8">{gc_str}</font>',
+                       sty('sig3', size=10, align=1, leading=16, space_after=0)),
         ]], colWidths=[PW/3, PW/3, PW/3])
         sig.setStyle(TableStyle([
-            ('TOPPADDING',   (0,0), (-1,-1), 12),
-            ('ALIGN',        (0,0), (-1,-1), 'CENTER'),
+            ('TOPPADDING',    (0,0), (-1,-1), 30),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+            ('ALIGN',         (0,0), (-1,-1), 'CENTER'),
+            ('LINEABOVE',     (0,0), (0,0), 1.2, colors.HexColor('#374151')),
+            ('LINEABOVE',     (1,0), (1,0), 1.2, colors.HexColor('#374151')),
+            ('LINEABOVE',     (2,0), (2,0), 1.2, colors.HexColor('#374151')),
+            ('LEFTPADDING',   (0,0), (-1,-1), 12),
+            ('RIGHTPADDING',  (0,0), (-1,-1), 12),
         ]))
         story.append(KeepTogether([sig]))
 
