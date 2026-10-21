@@ -1077,173 +1077,264 @@ def mark_forward_read(request, pk):
 
 @login_required
 def official_letter_pdf(request, pk):
-    """Generate official Woldiya City Administration letter PDF."""
+    """Generate full official Woldiya City Administration letter PDF."""
     doc = get_object_or_404(Document, pk=pk)
 
     try:
         from reportlab.lib.pagesizes import A4
         from reportlab.lib import colors
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.styles import ParagraphStyle
         from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
-                                        Table, TableStyle, HRFlowable, Image)
+                                        Table, TableStyle, HRFlowable, Image,
+                                        KeepTogether)
         from reportlab.lib.units import cm
         from reportlab.pdfbase import pdfmetrics
         from reportlab.pdfbase.ttfonts import TTFont
         from io import BytesIO
+        from documents.utils import to_ethiopian
 
-        # ── Register Ethiopic font ──
+        # ── Register Ethiopic font ──────────────────────────────────
         font_path = os.path.join(settings.BASE_DIR, 'static', 'fonts', 'ethiopic.ttf')
-        AM_FONT = 'Helvetica'  # fallback
-        AM_FONT_BOLD = 'Helvetica-Bold'
+        AM  = 'Helvetica'
+        AMB = 'Helvetica-Bold'
         if os.path.exists(font_path):
             try:
-                pdfmetrics.registerFont(TTFont('Ethiopic', font_path))
-                pdfmetrics.registerFont(TTFont('EthiopicBold', font_path))
-                AM_FONT = 'Ethiopic'
-                AM_FONT_BOLD = 'Ethiopic'
+                if 'Ethiopic' not in pdfmetrics.getRegisteredFontNames():
+                    pdfmetrics.registerFont(TTFont('Ethiopic', font_path))
+                AM = AMB = 'Ethiopic'
             except Exception:
                 pass
 
+        # ── Colours ────────────────────────────────────────────────
+        BRAND  = colors.HexColor('#1B4F72')
+        GOLD   = colors.HexColor('#C8960C')
+        LIGHT  = colors.HexColor('#F0F4F8')
+        BORDER = colors.HexColor('#CBD5E1')
+        WHITE  = colors.white
+        RED    = colors.HexColor('#C62828')
+
+        # ── Paragraph styles ───────────────────────────────────────
+        def sty(name, size=11, bold=False, color=colors.black, align=0, leading=None, space_after=6):
+            return ParagraphStyle(
+                name, fontName=AMB if bold else AM,
+                fontSize=size, textColor=color,
+                alignment=align, leading=leading or size * 1.4,
+                spaceAfter=space_after,
+            )
+
+        # ── Page setup ─────────────────────────────────────────────
         buf  = BytesIO()
-        page = SimpleDocTemplate(buf, pagesize=A4,
-                                  rightMargin=2.5*cm, leftMargin=2.5*cm,
-                                  topMargin=2*cm, bottomMargin=2*cm)
+        W, H = A4
+        page = SimpleDocTemplate(
+            buf, pagesize=A4,
+            rightMargin=2.2*cm, leftMargin=2.2*cm,
+            topMargin=1.8*cm, bottomMargin=2*cm,
+            title=f'{doc.reference_number} - {doc.title}',
+        )
+        story = []
+        PW = W - 4.4*cm  # usable width
 
-        styles = getSampleStyleSheet()
-        brand  = colors.HexColor('#1B4F72')
-        gold   = colors.HexColor('#C8960C')
-        story  = []
-
-        # Amharic paragraph styles using the registered font
-        am_normal = ParagraphStyle('am_normal', fontName=AM_FONT, fontSize=11, leading=16)
-        am_bold   = ParagraphStyle('am_bold',   fontName=AM_FONT_BOLD, fontSize=11, leading=16)
-        am_header = ParagraphStyle('am_header', fontName=AM_FONT_BOLD, fontSize=14, textColor=brand, leading=20)
-        am_small  = ParagraphStyle('am_small',  fontName=AM_FONT, fontSize=9, textColor=colors.HexColor('#1B4F72'), leading=13)
-        am_ref    = ParagraphStyle('am_ref',    fontName=AM_FONT, fontSize=10, textColor=colors.HexColor('#374151'), leading=15)
-
-        # ── Header with logo ──
-        header_data = [[
-            Paragraph('ወልድያ ከተማ አስተዳደር', am_header),
-            Paragraph(
-                f'ቁጥር: {doc.reference_number}<br/>'
-                f'ቀን: {doc.created_at.strftime("%d/%m/%Y")}<br/>'
-                f'ዓይነት: {doc.get_doc_type_display()}',
-                am_ref
-            ),
-        ]]
-
-        # Try to add logo
+        # ══════════════════════════════════════════════════════════
+        # HEADER — logo + org name + ref/date block
+        # ══════════════════════════════════════════════════════════
         logo_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'woldiya_logo.png')
+        et_date   = to_ethiopian(doc.created_at)
+        et_str    = et_date['full'] if et_date else ''
+        gc_str    = doc.created_at.strftime('%d/%m/%Y')
+
+        ref_block = Paragraph(
+            f'<b>ቁጥር:</b> {doc.reference_number}<br/>'
+            f'<b>ቀን:</b> {gc_str}<br/>'
+            f'<b>ኢትዮ. ቀን:</b> {et_str}<br/>'
+            f'<b>ዓይነት:</b> {doc.get_doc_type_display()}',
+            sty('ref', size=9.5, color=BRAND)
+        )
+
+        org_block = Paragraph(
+            f'<b>ወልድያ ከተማ አስተዳደር</b><br/>'
+            f'<font size="9">WOLDIYA CITY ADMINISTRATION</font><br/>'
+            f'<font size="8" color="#546E7A">ፈጠራ እና ቴክኖሎጂ — EDMS</font>',
+            sty('org', size=15, bold=True, color=BRAND, align=1)
+        )
+
         if os.path.exists(logo_path):
             try:
-                logo_img = Image(logo_path, width=2.5*cm, height=2.5*cm)
-                header_data[0].insert(0, logo_img)
-                col_widths = [2.8*cm, 10*cm, 4*cm]
+                logo_img  = Image(logo_path, width=2.8*cm, height=2.8*cm)
+                hdr_data  = [[logo_img, org_block, ref_block]]
+                hdr_widths = [3.0*cm, PW - 3.0*cm - 5.5*cm, 5.5*cm]
             except Exception:
-                col_widths = [12*cm, 4*cm]
+                hdr_data  = [[org_block, ref_block]]
+                hdr_widths = [PW - 5.5*cm, 5.5*cm]
         else:
-            col_widths = [12*cm, 4*cm]
+            hdr_data  = [[org_block, ref_block]]
+            hdr_widths = [PW - 5.5*cm, 5.5*cm]
 
-        t = Table(header_data, colWidths=col_widths)
-        t.setStyle(TableStyle([
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('ALIGN',  (-1,0), (-1,-1), 'RIGHT'),
+        hdr = Table(hdr_data, colWidths=hdr_widths)
+        hdr.setStyle(TableStyle([
+            ('VALIGN',   (0,0), (-1,-1), 'MIDDLE'),
+            ('ALIGN',    (-1,0), (-1,-1), 'RIGHT'),
+            ('LEFTPADDING',  (0,0), (-1,-1), 4),
+            ('RIGHTPADDING', (0,0), (-1,-1), 4),
         ]))
-        story.append(t)
-        story.append(HRFlowable(width='100%', color=gold, thickness=3, spaceAfter=16))
+        story.append(hdr)
+        story.append(Spacer(1, 6))
+        story.append(HRFlowable(width='100%', color=GOLD, thickness=3, spaceAfter=0))
+        story.append(HRFlowable(width='100%', color=BRAND, thickness=1, spaceBefore=2, spaceAfter=10))
 
-        # ── Document type banner ──
-        type_style = ParagraphStyle('type', fontSize=14, fontName=AM_FONT_BOLD,
-                                     textColor=colors.white, backColor=brand,
-                                     alignment=1, spaceAfter=16, leading=20,
-                                     leftIndent=-20, rightIndent=-20)
-        story.append(Paragraph(doc.get_doc_type_display(), type_style))
+        # ══════════════════════════════════════════════════════════
+        # DOCUMENT TYPE BANNER
+        # ══════════════════════════════════════════════════════════
+        banner_color = {
+            'INCOMING': BRAND,
+            'OUTGOING': colors.HexColor('#6A1B9A'),
+            'INTERNAL': colors.HexColor('#00695C'),
+        }.get(doc.doc_type, BRAND)
 
-        # ── Recipients ──
-        recip_data = [
-            [Paragraph('ለ:', am_bold), Paragraph(doc.receiver, am_normal)],
-            [Paragraph('ከ:', am_bold), Paragraph(doc.sender, am_normal)],
-            [Paragraph('ጉዳዩ:', am_bold), Paragraph(doc.title, am_bold)],
+        banner = Table(
+            [[Paragraph(doc.get_doc_type_display(),
+                        sty('ban', size=13, bold=True, color=WHITE, align=1, space_after=0))]],
+            colWidths=[PW]
+        )
+        banner.setStyle(TableStyle([
+            ('BACKGROUND',   (0,0), (-1,-1), banner_color),
+            ('TOPPADDING',   (0,0), (-1,-1), 8),
+            ('BOTTOMPADDING',(0,0), (-1,-1), 8),
+            ('LEFTPADDING',  (0,0), (-1,-1), 10),
+            ('RIGHTPADDING', (0,0), (-1,-1), 10),
+        ]))
+        story.append(banner)
+        story.append(Spacer(1, 14))
+
+        # ══════════════════════════════════════════════════════════
+        # TO / FROM / SUBJECT block
+        # ══════════════════════════════════════════════════════════
+        to_from = [
+            [Paragraph('ለ  :', sty('lbl', bold=True, color=BRAND)),
+             Paragraph(doc.receiver or '—', sty('val', size=11))],
+            [Paragraph('ከ  :', sty('lbl', bold=True, color=BRAND)),
+             Paragraph(doc.sender or '—',   sty('val', size=11))],
+            [Paragraph('ጉዳዩ:', sty('lbl', bold=True, color=BRAND)),
+             Paragraph(f'<b>{doc.title}</b>', sty('val', size=11, bold=True))],
         ]
         if doc.due_date:
-            recip_data.append([
-                Paragraph('የቀን ገደብ:', am_bold),
-                Paragraph(str(doc.due_date), am_normal),
+            et_due = to_ethiopian(doc.due_date)
+            due_str = f"{doc.due_date}  ({et_due['full'] if et_due else ''})"
+            to_from.append([
+                Paragraph('የቀን ገደብ:', sty('lbl', bold=True, color=RED)),
+                Paragraph(f'<font color="#C62828"><b>{due_str}</b></font>', sty('val', size=10)),
+            ])
+        if doc.assigned_to:
+            to_from.append([
+                Paragraph('ተሰጥቷል:', sty('lbl', bold=True, color=BRAND)),
+                Paragraph(doc.assigned_to.get_full_name() or doc.assigned_to.username, sty('val', size=10)),
             ])
 
-        t2 = Table(recip_data, colWidths=[3.5*cm, 12.5*cm])
-        t2.setStyle(TableStyle([
-            ('FONTSIZE',  (0,0), (-1,-1), 11),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-            ('TOPPADDING',    (0,0), (-1,-1), 6),
-            ('LINEBELOW', (0,0), (-1,-2), 0.5, colors.HexColor('#E2E8F0')),
+        tf_table = Table(to_from, colWidths=[3.2*cm, PW - 3.2*cm])
+        tf_table.setStyle(TableStyle([
+            ('TOPPADDING',    (0,0), (-1,-1), 7),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 7),
+            ('LEFTPADDING',   (0,0), (-1,-1), 4),
+            ('LINEBELOW', (0,0), (-1,-2), 0.5, BORDER),
+            ('VALIGN',    (0,0), (-1,-1), 'TOP'),
         ]))
-        story.append(t2)
-        story.append(Spacer(1, 16))
-        story.append(HRFlowable(width='100%', color=colors.HexColor('#E2E8F0'), thickness=1))
+        story.append(tf_table)
         story.append(Spacer(1, 12))
+        story.append(HRFlowable(width='100%', color=BORDER, thickness=0.8, spaceAfter=12))
 
-        # ── Body / Description ──
-        if doc.description:
-            story.append(Paragraph('ዝርዝር ይዘት / ማብራሪያ:',
-                                    ParagraphStyle('h', fontSize=11, fontName=AM_FONT_BOLD,
-                                                   textColor=brand, spaceAfter=8)))
-            story.append(Paragraph(doc.description.replace('\n', '<br/>'),
-                                    ParagraphStyle('body', fontName=AM_FONT, fontSize=11,
-                                                   leading=18, spaceAfter=20)))
+        # ══════════════════════════════════════════════════════════
+        # BODY / DESCRIPTION
+        # ══════════════════════════════════════════════════════════
+        story.append(Paragraph('ዝርዝር ይዘት / ማብራሪያ:', sty('h2', size=11, bold=True, color=BRAND, space_after=8)))
 
-        # ── Status & Priority ──
-        story.append(Spacer(1, 8))
-        status_data = [[
-            Paragraph(f'ሁኔታ: {doc.get_status_display()}', ParagraphStyle('s1', fontName=AM_FONT, fontSize=10)),
-            Paragraph(f'ቅድሚያ: {doc.get_priority_display()}', ParagraphStyle('s2', fontName=AM_FONT, fontSize=10)),
-            Paragraph(f'ምድብ: {doc.category or "—"}', ParagraphStyle('s3', fontName=AM_FONT, fontSize=10)),
-        ]]
-        t3 = Table(status_data, colWidths=[5*cm, 5*cm, 6*cm])
-        t3.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F0F4F8')),
-            ('FONTSIZE', (0,0), (-1,-1), 10),
-            ('PADDING', (0,0), (-1,-1), 8),
-            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-        ]))
-        story.append(t3)
-        story.append(Spacer(1, 80))  # Push signature lower on page
-
-        # ── Signature area ──
-        sig_data = [[
-            Paragraph('___________________________\nየሰነዱ አዘጋጅ ፊርማ',
-                       ParagraphStyle('sig', fontName=AM_FONT, fontSize=10, alignment=1, leading=14)),
-            Paragraph('___________________________\nኃላፊ ፊርማ',
-                       ParagraphStyle('sig2', fontName=AM_FONT, fontSize=10, alignment=1, leading=14)),
-            Paragraph('___________________________\nቀን',
-                       ParagraphStyle('sig3', fontName=AM_FONT, fontSize=10, alignment=1, leading=14)),
-        ]]
-        t4 = Table(sig_data, colWidths=[5.5*cm, 5.5*cm, 5*cm])
-        t4.setStyle(TableStyle([('TOPPADDING', (0,0), (-1,-1), 20)]))
-        story.append(t4)
-
-        # ── Footer ──
-        story.append(Spacer(1, 20))
-        story.append(HRFlowable(width='100%', color=gold, thickness=2))
+        body_text = doc.description.strip() if doc.description else '— (ምንም ዝርዝር አልተጻፈም) —'
         story.append(Paragraph(
-            f'ወልድያ ከተማ አስተዳደር — ፈጠራ እና ቴክኖሎጂ ቡድን | EDMS | '
-            f'ህትመት ቀን: {timezone.localdate()} | ቁጥር: {doc.reference_number}',
-            ParagraphStyle('footer', fontName=AM_FONT, fontSize=8, alignment=1, spaceAfter=0, leading=12)
+            body_text.replace('\n', '<br/>'),
+            sty('body', size=11, leading=20, space_after=16)
+        ))
+        story.append(Spacer(1, 8))
+
+        # ══════════════════════════════════════════════════════════
+        # STATUS / PRIORITY / CATEGORY summary bar
+        # ══════════════════════════════════════════════════════════
+        status_color = {
+            'DRAFT':        colors.HexColor('#546E7A'),
+            'PENDING':      colors.HexColor('#E65100'),
+            'IN_PROGRESS':  colors.HexColor('#1976D2'),
+            'UNDER_REVIEW': colors.HexColor('#6A1B9A'),
+            'APPROVED':     colors.HexColor('#2E7D32'),
+            'COMPLETED':    colors.HexColor('#1B5E20'),
+            'ARCHIVED':     colors.HexColor('#455A64'),
+        }.get(doc.status, BRAND)
+
+        priority_color = {
+            'LOW': colors.HexColor('#388E3C'),
+            'MEDIUM': colors.HexColor('#0277BD'),
+            'HIGH': colors.HexColor('#EF6C00'),
+            'URGENT': RED,
+        }.get(doc.priority, BRAND)
+
+        summary = Table([[
+            Paragraph(f'ሁኔታ: {doc.get_status_display()}',   sty('s1', size=9.5, bold=True, color=WHITE, align=1, space_after=0)),
+            Paragraph(f'ቅድሚያ: {doc.get_priority_display()}', sty('s2', size=9.5, bold=True, color=WHITE, align=1, space_after=0)),
+            Paragraph(f'ምድብ: {doc.category or "—"}',         sty('s3', size=9.5, color=BRAND, align=1, space_after=0)),
+        ]], colWidths=[PW/3, PW/3, PW/3])
+        summary.setStyle(TableStyle([
+            ('BACKGROUND',   (0,0), (0,0), status_color),
+            ('BACKGROUND',   (1,0), (1,0), priority_color),
+            ('BACKGROUND',   (2,0), (2,0), LIGHT),
+            ('TOPPADDING',   (0,0), (-1,-1), 7),
+            ('BOTTOMPADDING',(0,0), (-1,-1), 7),
+            ('BOX',          (0,0), (-1,-1), 0.5, BORDER),
+            ('INNERGRID',    (0,0), (-1,-1), 0.5, BORDER),
+            ('ROUNDEDCORNERS', [4]),
+        ]))
+        story.append(summary)
+
+        # ══════════════════════════════════════════════════════════
+        # SIGNATURE AREA (pushed to bottom)
+        # ══════════════════════════════════════════════════════════
+        story.append(Spacer(1, 60))
+
+        sig_line = '________________________________'
+        sig = Table([[
+            Paragraph(f'{sig_line}<br/><b>የሰነዱ አዘጋጅ ፊርማ</b><br/><font size="8">{doc.created_by.get_full_name() or doc.created_by.username if doc.created_by else ""}</font>',
+                       sty('sig1', size=10, align=1, leading=14, space_after=0)),
+            Paragraph(f'{sig_line}<br/><b>ኃላፊ / አፅዳቂ ፊርማ</b>',
+                       sty('sig2', size=10, align=1, leading=14, space_after=0)),
+            Paragraph(f'{sig_line}<br/><b>ቀን / Date</b><br/><font size="8">{gc_str}</font>',
+                       sty('sig3', size=10, align=1, leading=14, space_after=0)),
+        ]], colWidths=[PW/3, PW/3, PW/3])
+        sig.setStyle(TableStyle([
+            ('TOPPADDING',   (0,0), (-1,-1), 12),
+            ('ALIGN',        (0,0), (-1,-1), 'CENTER'),
+        ]))
+        story.append(KeepTogether([sig]))
+
+        # ══════════════════════════════════════════════════════════
+        # FOOTER
+        # ══════════════════════════════════════════════════════════
+        story.append(Spacer(1, 24))
+        story.append(HRFlowable(width='100%', color=GOLD, thickness=2, spaceAfter=4))
+        story.append(HRFlowable(width='100%', color=BRAND, thickness=1, spaceAfter=4))
+        story.append(Paragraph(
+            f'ወልድያ ከተማ አስተዳደር — ፈጠራ እና ቴክኖሎጂ ቡድን &nbsp;|&nbsp; EDMS &nbsp;|&nbsp; '
+            f'ህትመት ቀን: {gc_str} ({et_str}) &nbsp;|&nbsp; ቁጥር: {doc.reference_number}',
+            sty('footer', size=7.5, color=BRAND, align=1, space_after=0)
         ))
 
+        # ── Build and return ───────────────────────────────────────
         page.build(story)
         buf.seek(0)
+        safe_ref = doc.reference_number.replace('/', '_').replace('.', '_')
         response = HttpResponse(buf.getvalue(), content_type='application/pdf')
-        response['Content-Disposition'] = (
-            f'attachment; filename="letter_{doc.reference_number}.pdf"'
-        )
+        response['Content-Disposition'] = f'attachment; filename="letter_{safe_ref}.pdf"'
         return response
 
     except ImportError:
-        messages.error(request, 'reportlab አልተጫነም። pip install reportlab')
+        messages.error(request, 'reportlab not installed.')
         return redirect('document_detail', pk=pk)
     except Exception as e:
-        messages.error(request, f'PDF ስህተት: {e}')
+        messages.error(request, f'PDF error: {e}')
         return redirect('document_detail', pk=pk)
 
 
