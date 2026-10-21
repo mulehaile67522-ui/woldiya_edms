@@ -1207,7 +1207,7 @@ def official_letter_pdf(request, pk):
             ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
         ]))
         story.append(t3)
-        story.append(Spacer(1, 40))
+        story.append(Spacer(1, 80))  # Push signature lower on page
 
         # ── Signature area ──
         sig_data = [[
@@ -1235,7 +1235,7 @@ def official_letter_pdf(request, pk):
         buf.seek(0)
         response = HttpResponse(buf.getvalue(), content_type='application/pdf')
         response['Content-Disposition'] = (
-            f'inline; filename="letter_{doc.reference_number}.pdf"'
+            f'attachment; filename="letter_{doc.reference_number}.pdf"'
         )
         return response
 
