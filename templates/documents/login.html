@@ -168,7 +168,14 @@
     </div>
 
     <!-- Error messages -->
-    {% if form.errors %}
+    {% if error_msg %}
+    <div class="login-error">
+      <i class="bi bi-exclamation-circle-fill mt-1 flex-shrink-0"></i>
+      <div>
+        <strong>ስህተት!</strong> {{ error_msg }}
+      </div>
+    </div>
+    {% elif form.errors %}
     <div class="login-error">
       <i class="bi bi-exclamation-circle-fill mt-1 flex-shrink-0"></i>
       <div>

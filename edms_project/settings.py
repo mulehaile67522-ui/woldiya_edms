@@ -108,6 +108,22 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
 
+# ── Session Security (Task 2: auto-logout after 30 min idle) ──────────
+SESSION_COOKIE_AGE            = 1800          # 30 minutes
+SESSION_SAVE_EVERY_REQUEST    = True           # reset timer on activity
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True         # logout on browser close
+SESSION_COOKIE_HTTPONLY       = True           # no JS access to session
+SESSION_COOKIE_SAMESITE       = 'Lax'
+
+# ── Password Strength (Task 4) ────────────────────────────────────────
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+     'OPTIONS': {'min_length': 8}},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+]
+
 from django.contrib.messages import constants as mc
 MESSAGE_TAGS = {
     mc.DEBUG:   'secondary',

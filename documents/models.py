@@ -334,3 +334,24 @@ class DeletionLog(models.Model):
 
     def __str__(self):
         return f"DELETED: {self.reference_number} by {self.deleted_by}"
+
+
+# ──────────────────────────────────────────────
+#  LOGIN ATTEMPT LOG (security)
+# ──────────────────────────────────────────────
+
+class LoginAttempt(models.Model):
+    username    = models.CharField(max_length=150, verbose_name='Username')
+    ip_address  = models.GenericIPAddressField(null=True, blank=True)
+    success     = models.BooleanField(default=False, verbose_name='Success')
+    timestamp   = models.DateTimeField(auto_now_add=True)
+    user_agent  = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        ordering            = ['-timestamp']
+        verbose_name        = 'Login Attempt'
+        verbose_name_plural = 'Login Attempts'
+
+    def __str__(self):
+        status = 'OK' if self.success else 'FAILED'
+        return f'{status} — {self.username} @ {self.timestamp}'

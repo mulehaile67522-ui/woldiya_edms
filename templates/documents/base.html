@@ -465,6 +465,26 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+  // Auto-logout warning — 2 min before 30 min session expires
+  let idleTimer;
+  let warnTimer;
+  function resetIdle() {
+    clearTimeout(idleTimer);
+    clearTimeout(warnTimer);
+    warnTimer = setTimeout(() => {
+      if (confirm('28 ደቂቃ ካለፈ session ያልቃል። ቀጥል ትፈልጋለህ?')) {
+        fetch(window.location.href); // ping server to reset session
+      }
+    }, 28 * 60 * 1000);
+    idleTimer = setTimeout(() => {
+      window.location.href = '/logout/';
+    }, 30 * 60 * 1000);
+  }
+  ['mousemove','keydown','click','scroll','touchstart'].forEach(e =>
+    document.addEventListener(e, resetIdle, {passive: true})
+  );
+  resetIdle();
+
   // Register Service Worker for PWA
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {

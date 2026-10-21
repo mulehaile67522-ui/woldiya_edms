@@ -20,18 +20,88 @@ from .decorators import registrar_required, admin_required
 from .utils import generate_reference_number, generate_qr_code
 
 
+def _get_client_ip(request):
+    """Get real IP address from request."""
+    x_forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded:
+        return x_forwarded.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR')
+
+
+def _is_locked_out(username, ip):
+    """Return True if this username or IP has too many recent failed attempts."""
+    from .models import LoginAttempt
+    import datetime as _dt
+    window = timezone.now() - _dt.timedelta(minutes=15)
+    failed = LoginAttempt.objects.filter(
+        success=False,
+        timestamp__gte=window,
+    ).filter(
+        Q(username__iexact=username) | Q(ip_address=ip)
+    ).count()
+    return failed >= 5
+
+
 # ──────────────────────────── AUTH ───────────────────────────────────
 
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
-    form = AuthenticationForm(request, data=request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        user = form.get_user()
-        login(request, user)
-        messages.success(request, f'እንኳን ደህና መጡ, {user.get_full_name() or user.username}!')
-        return redirect(request.GET.get('next', 'dashboard'))
-    return render(request, 'documents/login.html', {'form': form})
+
+    ip         = _get_client_ip(request)
+    error_msg  = None
+
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+
+        # ── Check lockout ─────────────────────────────────────────
+        if _is_locked_out(username, ip):
+            error_msg = 'በጣም ብዙ ጊዜ ሞክረዋል። 15 ደቂቃ ጠብቁ።'
+            from .models import LoginAttempt
+            LoginAttempt.objects.create(
+                username=username, ip_address=ip, success=False,
+                user_agent=request.META.get('HTTP_USER_AGENT', '')[:300]
+            )
+        else:
+            form = AuthenticationForm(request, data=request.POST)
+            if form.is_valid():
+                user = form.get_user()
+                login(request, user)
+                # Log success
+                from .models import LoginAttempt
+                LoginAttempt.objects.create(
+                    username=username, ip_address=ip, success=True,
+                    user_agent=request.META.get('HTTP_USER_AGENT', '')[:300]
+                )
+                messages.success(request, f'እንኳን ደህና መጡ, {user.get_full_name() or user.username}!')
+                return redirect(request.GET.get('next', 'dashboard'))
+            else:
+                # Log failure
+                from .models import LoginAttempt
+                LoginAttempt.objects.create(
+                    username=username, ip_address=ip, success=False,
+                    user_agent=request.META.get('HTTP_USER_AGENT', '')[:300]
+                )
+                # Count remaining attempts
+                import datetime as _dt
+                window = timezone.now() - _dt.timedelta(minutes=15)
+                failed = LoginAttempt.objects.filter(
+                    success=False, timestamp__gte=window,
+                    username__iexact=username
+                ).count()
+                remaining = max(0, 5 - failed)
+                if remaining > 0:
+                    error_msg = f'ስህተት! {remaining} ጊዜ ብቻ ቀርቷል።'
+                else:
+                    error_msg = 'Account ተቆልፏል። 15 ደቂቃ ጠብቁ።'
+    else:
+        form = AuthenticationForm(request)
+
+    return render(request, 'documents/login.html', {
+        'form': AuthenticationForm(request),
+        'error_msg': error_msg,
+    })
 
 
 def logout_view(request):
