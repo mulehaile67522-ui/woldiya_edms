@@ -180,4 +180,47 @@
   {% endif %}
 </div>
 
+<!-- Deleted Documents Section -->
+{% if deletion_logs %}
+<div class="page-card mt-4">
+  <div class="card-head" style="background:#fce4ec;">
+    <h6 style="color:#c62828;"><i class="bi bi-trash-fill me-2"></i>Deleted Documents ({{ deletion_logs|length }})</h6>
+  </div>
+  <div class="table-responsive">
+    <table class="edms-table">
+      <thead style="background:#c62828;">
+        <tr>
+          <th>Reference Number</th>
+          <th>Title</th>
+          <th>Type</th>
+          <th>Department</th>
+          <th>Deleted By</th>
+          <th>Deleted At</th>
+          <th>Reason</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for dl in deletion_logs %}
+        <tr>
+          <td><span class="text-danger fw-bold">{{ dl.reference_number }}</span></td>
+          <td>{{ dl.title }}</td>
+          <td><span class="eb eb-{{ dl.doc_type }}">{{ dl.doc_type }}</span></td>
+          <td class="text-muted small">{{ dl.department|default:"—" }}</td>
+          <td>
+            {% if dl.deleted_by %}
+            <span class="fw-semibold">{{ dl.deleted_by.username }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="text-muted small" style="white-space:nowrap;">
+            {{ dl.deleted_at|date:"d/m/Y H:i" }}
+          </td>
+          <td class="text-muted small">{{ dl.reason|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
 {% endblock %}
