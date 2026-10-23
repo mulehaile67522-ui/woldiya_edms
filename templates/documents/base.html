@@ -289,24 +289,36 @@
       <i class="bi bi-speedometer2"></i> ዳሽቦርድ
     </a></li>
 
-    <!-- ── Documents ── -->
-    <li><span class="sb-section">ደብዳቤዎች</span></li>
-    <li><a href="{% url 'document_list' %}" class="nav-link {% if request.resolver_match.url_name == 'document_list' %}active{% endif %}">
-      <i class="bi bi-files" style="color:#90caf9"></i> ሁሉም ደብዳቤዎች
-    </a></li>
-    <li><a href="{% url 'inbox' %}" class="nav-link {% if request.resolver_match.url_name == 'inbox' %}active{% endif %}">
-      <i class="bi bi-envelope-fill" style="color:#ffd54f"></i> ገቢ መልዕክቶች
-      {% if inbox_unread %}<span class="badge bg-warning text-dark ms-auto" style="font-size:.6rem;">{{ inbox_unread }}</span>{% endif %}
-    </a></li>
-    <li><a href="{% url 'document_list' %}?doc_type=INCOMING" class="nav-link">
-      <i class="bi bi-box-arrow-in-down" style="color:#81d4fa"></i> ገቢ ደብዳቤ
-    </a></li>
-    <li><a href="{% url 'document_list' %}?doc_type=OUTGOING" class="nav-link">
-      <i class="bi bi-box-arrow-up" style="color:#ce93d8"></i> ወጪ ደብዳቤ
-    </a></li>
-    <li><a href="{% url 'document_list' %}?doc_type=INTERNAL" class="nav-link">
-      <i class="bi bi-sticky-fill" style="color:#80cbc4"></i> የውስጥ ማስታወሻ
-    </a></li>
+    <li><hr class="sb-divider"></li>
+    <!-- ── Documents (collapsible) ── -->
+    <li>
+      <button class="nav-link sb-collapse-btn d-flex justify-content-between align-items-center w-100 border-0 bg-transparent text-start"
+         data-bs-toggle="collapse" data-bs-target="#collapseDebdabe"
+         aria-expanded="{% if request.resolver_match.url_name == 'document_list' or request.resolver_match.url_name == 'inbox' or request.resolver_match.url_name == 'document_detail' or request.resolver_match.url_name == 'document_create' %}true{% else %}false{% endif %}">
+        <span><i class="bi bi-files" style="color:#90caf9"></i> ደብዳቤዎች</span>
+        <i class="bi bi-chevron-down sb-chevron"></i>
+      </button>
+      <div class="collapse {% if request.resolver_match.url_name == 'document_list' or request.resolver_match.url_name == 'inbox' or request.resolver_match.url_name == 'document_detail' or request.resolver_match.url_name == 'document_create' %}show{% endif %}" id="collapseDebdabe">
+        <ul class="nav flex-column ps-3">
+          <li><a href="{% url 'document_list' %}" class="nav-link py-1 {% if request.resolver_match.url_name == 'document_list' %}active{% endif %}" style="font-size:.82rem;">
+            <i class="bi bi-files" style="color:#90caf9"></i> ሁሉም ደብዳቤዎች
+          </a></li>
+          <li><a href="{% url 'inbox' %}" class="nav-link py-1 {% if request.resolver_match.url_name == 'inbox' %}active{% endif %}" style="font-size:.82rem;">
+            <i class="bi bi-envelope-fill" style="color:#ffd54f"></i> ገቢ መልዕክቶች
+            {% if inbox_unread %}<span class="badge bg-warning text-dark ms-1" style="font-size:.6rem;">{{ inbox_unread }}</span>{% endif %}
+          </a></li>
+          <li><a href="{% url 'document_list' %}?doc_type=INCOMING" class="nav-link py-1" style="font-size:.82rem;">
+            <i class="bi bi-box-arrow-in-down" style="color:#81d4fa"></i> ገቢ ደብዳቤ
+          </a></li>
+          <li><a href="{% url 'document_list' %}?doc_type=OUTGOING" class="nav-link py-1" style="font-size:.82rem;">
+            <i class="bi bi-box-arrow-up" style="color:#ce93d8"></i> ወጪ ደብዳቤ
+          </a></li>
+          <li><a href="{% url 'document_list' %}?doc_type=INTERNAL" class="nav-link py-1" style="font-size:.82rem;">
+            <i class="bi bi-sticky-fill" style="color:#80cbc4"></i> የውስጥ ማስታወሻ
+          </a></li>
+        </ul>
+      </div>
+    </li>
 
     <!-- ── ሁኔታ (collapsible) ── -->
     <li>
