@@ -292,20 +292,20 @@
     <!-- ── Documents ── -->
     <li><span class="sb-section">ደብዳቤዎች</span></li>
     <li><a href="{% url 'document_list' %}" class="nav-link {% if request.resolver_match.url_name == 'document_list' %}active{% endif %}">
-      <i class="bi bi-files"></i> ሁሉም ደብዳቤዎች
+      <i class="bi bi-files" style="color:#90caf9"></i> ሁሉም ደብዳቤዎች
     </a></li>
     <li><a href="{% url 'inbox' %}" class="nav-link {% if request.resolver_match.url_name == 'inbox' %}active{% endif %}">
-      <i class="bi bi-inbox-fill" style="color:#ffd54f"></i> ገቢ መልዕክቶች
+      <i class="bi bi-envelope-fill" style="color:#ffd54f"></i> ገቢ መልዕክቶች
       {% if inbox_unread %}<span class="badge bg-warning text-dark ms-auto" style="font-size:.6rem;">{{ inbox_unread }}</span>{% endif %}
     </a></li>
     <li><a href="{% url 'document_list' %}?doc_type=INCOMING" class="nav-link">
-      <i class="bi bi-inbox-fill" style="color:#90caf9"></i> ገቢ ደብዳቤ
+      <i class="bi bi-box-arrow-in-down" style="color:#81d4fa"></i> ገቢ ደብዳቤ
     </a></li>
     <li><a href="{% url 'document_list' %}?doc_type=OUTGOING" class="nav-link">
-      <i class="bi bi-send-fill" style="color:#ce93d8"></i> ወጪ ደብዳቤ
+      <i class="bi bi-box-arrow-up" style="color:#ce93d8"></i> ወጪ ደብዳቤ
     </a></li>
     <li><a href="{% url 'document_list' %}?doc_type=INTERNAL" class="nav-link">
-      <i class="bi bi-journal-text" style="color:#80cbc4"></i> የውስጥ ማስታወሻ
+      <i class="bi bi-sticky-fill" style="color:#80cbc4"></i> የውስጥ ማስታወሻ
     </a></li>
 
     <!-- ── ሁኔታ (collapsible) ── -->
