@@ -370,9 +370,6 @@
 
     <!-- ── Actions ── -->
     <li><hr class="sb-divider"></li>
-    <li><a href="{% url 'document_create' %}" class="nav-link">
-      <i class="bi bi-plus-circle-fill" style="color:#a5d6a7"></i> አዲስ ደብዳቤ
-    </a></li>
     <li><a href="{% url 'qr_scanner' %}" class="nav-link {% if request.resolver_match.url_name == 'qr_scanner' %}active{% endif %}">
       <i class="bi bi-qr-code-scan" style="color:#ffd54f"></i> QR Scanner
     </a></li>
