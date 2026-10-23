@@ -1,5 +1,5 @@
 from django.utils import timezone
-from .models import Document, DocumentForward
+from .models import Document, DocumentForward, Category
 
 
 def notifications(request):
@@ -70,4 +70,5 @@ def notifications(request):
         'user_is_registrar':    user_is_registrar,
         'user_can_edit':        user_can_edit,
         'user_can_create':      user_can_create,
+        'sidebar_categories':   list(Category.objects.order_by('name')[:8]),
     }

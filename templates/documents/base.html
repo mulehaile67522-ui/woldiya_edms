@@ -87,6 +87,9 @@
     #sidebar .nav-link:hover { background:rgba(255,255,255,.11); color:#fff; }
     #sidebar .nav-link.active { background:var(--brand-gold); color:#fff; font-weight:600; }
     .sb-divider { border-color:rgba(255,255,255,.1); margin:4px 14px; }
+    .sb-collapse-btn { cursor:pointer; }
+    .sb-collapse-btn .sb-chevron { transition: transform .2s; font-size:.7rem; opacity:.6; }
+    .sb-collapse-btn[aria-expanded="true"] .sb-chevron { transform: rotate(180deg); }
     .sb-user {
       margin-top:auto; padding:12px 16px;
       border-top:1px solid rgba(255,255,255,.1);
@@ -277,11 +280,14 @@
   </div>
 
   <ul class="nav flex-column mt-1 pb-3">
+
+    <!-- ── Dashboard ── -->
     <li><span class="sb-section">ዋና ምናሌ</span></li>
     <li><a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
       <i class="bi bi-speedometer2"></i> ዳሽቦርድ
     </a></li>
 
+    <!-- ── Documents ── -->
     <li><span class="sb-section">ደብዳቤዎች</span></li>
     <li><a href="{% url 'document_list' %}" class="nav-link {% if request.resolver_match.url_name == 'document_list' %}active{% endif %}">
       <i class="bi bi-files"></i> ሁሉም ደብዳቤዎች
@@ -300,18 +306,55 @@
       <i class="bi bi-journal-text" style="color:#80cbc4"></i> የውስጥ ማስታወሻ
     </a></li>
 
-    <li><span class="sb-section">ሁኔታ</span></li>
-    <li><a href="{% url 'document_list' %}?status=PENDING" class="nav-link">
-      <i class="bi bi-hourglass-split" style="color:#ffcc80"></i> በጥበቃ ላይ
-    </a></li>
-    <li><a href="{% url 'document_list' %}?status=IN_PROGRESS" class="nav-link">
-      <i class="bi bi-arrow-repeat" style="color:#90caf9"></i> በሂደት ላይ
-    </a></li>
-    <li><a href="{% url 'overdue_documents' %}" class="nav-link">
-      <i class="bi bi-alarm-fill" style="color:#ef9a9a"></i> ጊዜ ያለፋቸው
-      {% if overdue_count %}<span class="badge bg-danger ms-auto" style="font-size:.6rem;">{{ overdue_count }}</span>{% endif %}
-    </a></li>
+    <!-- ── ሁኔታ (collapsible) ── -->
+    <li>
+      <a class="nav-link sb-collapse-btn d-flex justify-content-between align-items-center"
+         data-bs-toggle="collapse" href="#collapseHuneta" role="button"
+         aria-expanded="{% if request.GET.status or request.resolver_match.url_name == 'overdue_documents' %}true{% else %}false{% endif %}">
+        <span><i class="bi bi-layers-fill" style="color:#ffab91"></i> ሁኔታ</span>
+        <i class="bi bi-chevron-down sb-chevron"></i>
+      </a>
+      <div class="collapse {% if request.GET.status or request.resolver_match.url_name == 'overdue_documents' %}show{% endif %}" id="collapseHuneta">
+        <ul class="nav flex-column ps-3">
+          <li><a href="{% url 'document_list' %}?status=PENDING" class="nav-link py-1" style="font-size:.82rem;">
+            <i class="bi bi-hourglass-split" style="color:#ffcc80"></i> በጥበቃ ላይ
+          </a></li>
+          <li><a href="{% url 'document_list' %}?status=IN_PROGRESS" class="nav-link py-1" style="font-size:.82rem;">
+            <i class="bi bi-arrow-repeat" style="color:#90caf9"></i> በሂደት ላይ
+          </a></li>
+          <li><a href="{% url 'overdue_documents' %}" class="nav-link py-1" style="font-size:.82rem;">
+            <i class="bi bi-alarm-fill" style="color:#ef9a9a"></i> ጊዜ ያለፋቸው
+            {% if overdue_count %}<span class="badge bg-danger ms-1" style="font-size:.6rem;">{{ overdue_count }}</span>{% endif %}
+          </a></li>
+        </ul>
+      </div>
+    </li>
 
+    <!-- ── ምድቦች (collapsible) ── -->
+    {% if sidebar_categories %}
+    <li>
+      <a class="nav-link sb-collapse-btn d-flex justify-content-between align-items-center"
+         data-bs-toggle="collapse" href="#collapseMdboch" role="button"
+         aria-expanded="{% if 'category' in request.resolver_match.url_name %}true{% else %}false{% endif %}">
+        <span><i class="bi bi-tags-fill" style="color:#ffab91"></i> ምድቦች</span>
+        <i class="bi bi-chevron-down sb-chevron"></i>
+      </a>
+      <div class="collapse {% if 'category' in request.resolver_match.url_name %}show{% endif %}" id="collapseMdboch">
+        <ul class="nav flex-column ps-3">
+          {% for cat in sidebar_categories %}
+          <li><a href="{% url 'document_list' %}?category={{ cat.pk }}" class="nav-link py-1" style="font-size:.82rem;">
+            <i class="bi bi-tag" style="color:#ffab91"></i> {{ cat }}
+          </a></li>
+          {% endfor %}
+          <li><a href="{% url 'category_list' %}" class="nav-link py-1" style="font-size:.78rem;color:rgba(255,255,255,.45);">
+            <i class="bi bi-arrow-right"></i> ሁሉም ምድቦች
+          </a></li>
+        </ul>
+      </div>
+    </li>
+    {% endif %}
+
+    <!-- ── Actions ── -->
     <li><hr class="sb-divider"></li>
     <li><a href="{% url 'document_create' %}" class="nav-link">
       <i class="bi bi-plus-circle-fill" style="color:#a5d6a7"></i> አዲስ ደብዳቤ
@@ -319,20 +362,31 @@
     <li><a href="{% url 'qr_scanner' %}" class="nav-link {% if request.resolver_match.url_name == 'qr_scanner' %}active{% endif %}">
       <i class="bi bi-qr-code-scan" style="color:#ffd54f"></i> QR Scanner
     </a></li>
-    <li><a href="{% url 'category_list' %}" class="nav-link {% if 'category' in request.resolver_match.url_name %}active{% endif %}">
-      <i class="bi bi-tags-fill" style="color:#ffab91"></i> ምድቦች
-    </a></li>
 
+    <!-- ── ትንተና Admin only (collapsible) ── -->
     {% if user_is_admin %}
-    <li><span class="sb-section">ትንተና</span></li>
-    <li><a href="{% url 'audit_trail' %}" class="nav-link {% if request.resolver_match.url_name == 'audit_trail' %}active{% endif %}">
-      <i class="bi bi-journal-check" style="color:#80deea"></i> Audit Trail
-    </a></li>
-    <li><a href="{% url 'reports' %}" class="nav-link {% if request.resolver_match.url_name == 'reports' %}active{% endif %}">
-      <i class="bi bi-bar-chart-fill" style="color:#80cbc4"></i> ሪፖርት
-    </a></li>
+    <li><hr class="sb-divider"></li>
+    <li>
+      <a class="nav-link sb-collapse-btn d-flex justify-content-between align-items-center"
+         data-bs-toggle="collapse" href="#collapseTntena" role="button"
+         aria-expanded="{% if request.resolver_match.url_name == 'audit_trail' or request.resolver_match.url_name == 'reports' %}true{% else %}false{% endif %}">
+        <span><i class="bi bi-graph-up" style="color:#80deea"></i> ትንተና</span>
+        <i class="bi bi-chevron-down sb-chevron"></i>
+      </a>
+      <div class="collapse {% if request.resolver_match.url_name == 'audit_trail' or request.resolver_match.url_name == 'reports' %}show{% endif %}" id="collapseTntena">
+        <ul class="nav flex-column ps-3">
+          <li><a href="{% url 'audit_trail' %}" class="nav-link py-1 {% if request.resolver_match.url_name == 'audit_trail' %}active{% endif %}" style="font-size:.82rem;">
+            <i class="bi bi-journal-check" style="color:#80deea"></i> Audit Trail
+          </a></li>
+          <li><a href="{% url 'reports' %}" class="nav-link py-1 {% if request.resolver_match.url_name == 'reports' %}active{% endif %}" style="font-size:.82rem;">
+            <i class="bi bi-bar-chart-fill" style="color:#80cbc4"></i> ሪፖርት
+          </a></li>
+        </ul>
+      </div>
+    </li>
     {% endif %}
 
+    <!-- ── Admin ── -->
     {% if request.user.is_staff %}
     <li><hr class="sb-divider"></li>
     <li><a href="{% url 'user_management' %}" class="nav-link {% if request.resolver_match.url_name == 'user_management' %}active{% endif %}">
