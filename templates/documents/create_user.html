@@ -85,30 +85,53 @@
                 {% endfor %}
               </select>
               <div class="mt-2 p-2 rounded" style="background:#f8faff;font-size:.78rem;">
-                <div><span class="eb eb-URGENT" style="font-size:.68rem;">አስተዳዳሪ</span> — ሁሉም ፈቃዶች</div>
-                <div class="mt-1"><span class="eb eb-IN_PROGRESS" style="font-size:.68rem;">ሰናዳ</span> — ደብዳቤ ምዝገባ</div>
+                <div><span class="eb eb-URGENT" style="font-size:.68rem;">ከንቲባ</span> — ሁሉም ፈቃዶች</div>
+                <div class="mt-1"><span class="eb eb-URGENT" style="font-size:.68rem;">ምክትል ከንቲባ</span> — ሁሉም ፈቃዶች</div>
+                <div class="mt-1"><span class="eb eb-IN_PROGRESS" style="font-size:.68rem;">አስተዳዳሪ</span> — ስርዓት control</div>
+                <div class="mt-1"><span class="eb eb-COMPLETED" style="font-size:.68rem;">ቢሮ ኃላፊ</span> — edit + approve</div>
+                <div class="mt-1"><span class="eb eb-IN_PROGRESS" style="font-size:.68rem;">ሰናዳ</span> — ምዝገባ</div>
+                <div class="mt-1"><span class="eb eb-INTERNAL" style="font-size:.68rem;">ክፍለ ከተማ</span> — ወረዳ ደብዳቤ</div>
                 <div class="mt-1"><span class="eb eb-ARCHIVED" style="font-size:.68rem;">ተመልካች</span> — ማየት ብቻ</div>
               </div>
             </div>
             <div class="col-sm-6">
-              <label class="form-label">ክፍል / ቢሮ</label>
+              <label class="form-label">ቢሮ / መምሪያ</label>
               <select name="department" class="form-select">
                 <option value="">— ይምረጡ —</option>
-                <option value="ፈጠራ እና ቴክኖሎጂ">ፈጠራ እና ቴክኖሎጂ</option>
-                <option value="ጤና ቢሮ">ጤና ቢሮ</option>
-                <option value="ገቢ ቢሮ">ገቢ ቢሮ</option>
-                <option value="ግብርና ቢሮ">ግብርና ቢሮ</option>
-                <option value="ትምህርት ቢሮ">ትምህርት ቢሮ</option>
-                <option value="መሬት ቢሮ">መሬት ቢሮ</option>
-                <option value="ፀጥታ ቢሮ">ፀጥታ ቢሮ</option>
-                <option value="ማህበራዊ ቢሮ">ማህበራዊ ቢሮ</option>
-                <option value="ንግድ ቢሮ">ንግድ ቢሮ</option>
-                <option value="መሰረተ ልማት">መሰረተ ልማት</option>
-                <option value="ሕዝብ ግንኙነት">ሕዝብ ግንኙነት</option>
-                <option value="ፋይናንስ ቢሮ">ፋይናንስ ቢሮ</option>
-                <option value="ሕግ ቢሮ">ሕግ ቢሮ</option>
-                <option value="ዕቅድ ቢሮ">ዕቅድ ቢሮ</option>
-                <option value="ሌላ">ሌላ</option>
+                <optgroup label="── ከተማ አስተዳደር ──">
+                  <option value="ከንቲባ ጽፈት ቤት">ከንቲባ ጽፈት ቤት</option>
+                  <option value="ምክር ቤት ጽፈት ቤት">ምክር ቤት ጽፈት ቤት</option>
+                </optgroup>
+                <optgroup label="── መምሪያዎች ──">
+                  <option value="ገቢዎች ጽፈት ቤት">ገቢዎች ጽፈት ቤት</option>
+                  <option value="ገንዘብ መምሪያ">ገንዘብ መምሪያ</option>
+                  <option value="ሴቶችና ህጻናት መምሪያ">ሴቶችና ህጻናት መምሪያ</option>
+                  <option value="ንግድና ገበያ ልማት መምሪያ">ንግድና ገበያ ልማት መምሪያ</option>
+                  <option value="ምግብ ዋስትና ተጠሪ ጽፈት ቤት">ምግብ ዋስትና ተጠሪ ጽፈት ቤት</option>
+                  <option value="ሲቪል ሰርቪስ መምሪያ">ሲቪል ሰርቪስ መምሪያ</option>
+                  <option value="ጤና መምሪያ">ጤና መምሪያ</option>
+                  <option value="ኮሙኒኬሽን መምሪያ">ኮሙኒኬሽን መምሪያ</option>
+                  <option value="ስራ እና ክህሎት መምሪያ">ስራ እና ክህሎት መምሪያ</option>
+                  <option value="ትምህርት መምሪያ">ትምህርት መምሪያ</option>
+                  <option value="ባህልና ቱሪዝም ስፖርት መምሪያ">ባህልና ቱሪዝም ስፖርት መምሪያ</option>
+                  <option value="ትራንስፖርት ሎጅስቲክ መምሪያ">ትራንስፖርት ሎጅስቲክ መምሪያ</option>
+                  <option value="ማህበራት ተጠሪ ጽፈት ቤት">ማህበራት ተጠሪ ጽፈት ቤት</option>
+                  <option value="እንሣትና አሳ ሃብት መምሪያ">እንሣትና አሳ ሃብት መምሪያ</option>
+                  <option value="ግብርና መምሪያ">ግብርና መምሪያ</option>
+                  <option value="መሰረተ ልማት መምሪያ">መሰረተ ልማት መምሪያ</option>
+                  <option value="መሬት መምሪያ">መሬት መምሪያ</option>
+                  <option value="ፍትህ ተጠሪ ጽፈት ቤት">ፍትህ ተጠሪ ጽፈት ቤት</option>
+                  <option value="ፖሊስ መምሪያ">ፖሊስ መምሪያ</option>
+                  <option value="ጸጥታ ተጠሪ ጽፈት ቤት">ጸጥታ ተጠሪ ጽፈት ቤት</option>
+                  <option value="ሚኒሻ ተጠሪ ጽፈት ቤት">ሚኒሻ ተጠሪ ጽፈት ቤት</option>
+                  <option value="ፈጠራ እና ቴክኖሎጂ ቡድን">ፈጠራ እና ቴክኖሎጂ ቡድን</option>
+                  <option value="ሌሎች">ሌሎች</option>
+                </optgroup>
+                <optgroup label="── ክፍለ ከተሞች ──">
+                  <option value="ታላቁ ራሳሊ ክፍለ ከተማ">ታላቁ ራሳሊ ክፍለ ከተማ</option>
+                  <option value="የጁ ክፍለ ከተማ">የጁ ክፍለ ከተማ</option>
+                  <option value="ጣይቱ ክፍለ ከተማ">ጣይቱ ክፍለ ከተማ</option>
+                </optgroup>
               </select>
             </div>
           </div>

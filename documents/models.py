@@ -11,13 +11,33 @@ import os
 
 class UserProfile(models.Model):
     ROLE_CHOICES = [
-        ('ADMIN',      'አስተዳዳሪ'),
-        ('REGISTRAR',  'ሰናዳ'),
-        ('VIEWER',     'ተመልካች'),
+        ('MAYOR',       'ከንቲባ'),
+        ('VICE_MAYOR',  'ምክትል ከንቲባ'),
+        ('ADMIN',       'አስተዳዳሪ (IT)'),
+        ('DEPT_HEAD',   'የቢሮ/መምሪያ ኃላፊ'),
+        ('REGISTRAR',   'ሰናዳ'),
+        ('SUBCITY',     'ክፍለ ከተማ'),
+        ('VIEWER',      'ተመልካች'),
     ]
+
+    ORG_LEVEL_CHOICES = [
+        ('CITY',    'ከተማ አስተዳደር'),
+        ('DEPT',    'መምሪያ / ቢሮ'),
+        ('SUBCITY', 'ክፍለ ከተማ'),
+    ]
+
+    SUBCITY_CHOICES = [
+        ('',            '— ምረጥ —'),
+        ('TALAKU_RASALI','ታላቁ ራሳሊ ክፍለ ከተማ'),
+        ('YEJU',         'የጁ ክፍለ ከተማ'),
+        ('TAYITU',       'ጣይቱ ክፍለ ከተማ'),
+    ]
+
     user       = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    role       = models.CharField(max_length=12, choices=ROLE_CHOICES, default='VIEWER')
-    department = models.CharField(max_length=100, blank=True, verbose_name='ክፍል / ቢሮ')
+    role       = models.CharField(max_length=15, choices=ROLE_CHOICES, default='VIEWER', verbose_name='ሚና')
+    org_level  = models.CharField(max_length=10, choices=ORG_LEVEL_CHOICES, default='DEPT', verbose_name='የድርጅት ደረጃ')
+    department = models.CharField(max_length=150, blank=True, verbose_name='ቢሮ / መምሪያ')
+    subcity    = models.CharField(max_length=20, choices=SUBCITY_CHOICES, blank=True, verbose_name='ክፍለ ከተማ')
     phone      = models.CharField(max_length=20, blank=True, verbose_name='ስልክ ቁጥር')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -28,9 +48,21 @@ class UserProfile(models.Model):
     def __str__(self):
         return f"{self.user.username} ({self.get_role_display()})"
 
-    def is_admin(self):      return self.role == 'ADMIN'
-    def is_registrar(self):  return self.role in ('ADMIN', 'REGISTRAR')
-    def can_edit(self):      return self.role in ('ADMIN', 'REGISTRAR')
+    def is_admin(self):
+        return self.role in ('ADMIN', 'MAYOR', 'VICE_MAYOR')
+
+    def is_registrar(self):
+        return self.role in ('ADMIN', 'MAYOR', 'VICE_MAYOR', 'DEPT_HEAD', 'REGISTRAR', 'SUBCITY')
+
+    def can_edit(self):
+        return self.role in ('ADMIN', 'MAYOR', 'VICE_MAYOR', 'DEPT_HEAD')
+
+    def can_approve(self):
+        return self.role in ('MAYOR', 'VICE_MAYOR', 'DEPT_HEAD')
+
+    def sees_all(self):
+        """City-level roles see ALL documents."""
+        return self.role in ('MAYOR', 'VICE_MAYOR', 'ADMIN')
 
 
 @receiver(post_save, sender=User)
@@ -45,6 +77,35 @@ def save_user_profile(sender, instance, **kwargs):
         instance.profile.save()
     except UserProfile.DoesNotExist:
         UserProfile.objects.get_or_create(user=instance)
+
+
+# ──────────────────────────────────────────────
+#  DEPARTMENT (ቢሮዎች / መምሪያዎች)
+# ──────────────────────────────────────────────
+
+class Department(models.Model):
+    LEVEL_CHOICES = [
+        ('CITY',    'ከተማ አስተዳደር'),
+        ('DEPT',    'መምሪያ / ቢሮ'),
+        ('SUBCITY', 'ክፍለ ከተማ'),
+    ]
+
+    name       = models.CharField(max_length=150, unique=True, verbose_name='የቢሮ/መምሪያ ስም')
+    short_name = models.CharField(max_length=50, blank=True, verbose_name='አጭር ስም')
+    level      = models.CharField(max_length=10, choices=LEVEL_CHOICES, default='DEPT', verbose_name='ደረጃ')
+    parent     = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='children', verbose_name='ሪፖርት ለሚያደርጉለት')
+    is_active  = models.BooleanField(default=True, verbose_name='ንቁ')
+    order      = models.PositiveIntegerField(default=0, verbose_name='ቅደም ተከተል')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering            = ['order', 'name']
+        verbose_name        = 'ቢሮ / መምሪያ'
+        verbose_name_plural = 'ቢሮዎች / መምሪያዎች'
+
+    def __str__(self):
+        return self.name
 
 
 # ──────────────────────────────────────────────
@@ -117,8 +178,11 @@ class Document(models.Model):
         ('INTERNAL', 'የውስጥ ማስታወሻ'),
     ]
     STATUS_CHOICES = [
+        ('DRAFT',       'ረቂቅ'),
         ('PENDING',     'በመጠባበቅ ላይ'),
         ('IN_PROGRESS', 'በሂደት ላይ'),
+        ('UNDER_REVIEW','በዳኝነት ላይ'),
+        ('APPROVED',    'ጸድቋል'),
         ('COMPLETED',   'ተጠናቋል'),
         ('ARCHIVED',    'ተቀምጧል'),
     ]
@@ -134,6 +198,7 @@ class Document(models.Model):
     doc_type         = models.CharField(max_length=10, choices=DOCUMENT_TYPES, verbose_name='ዓይነት')
     category         = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True,
                                           related_name='documents', verbose_name='ምድብ')
+    department       = models.CharField(max_length=100, blank=True, verbose_name='ቢሮ / ክፍል')
     sender           = models.CharField(max_length=255, verbose_name='ላኪ')
     receiver         = models.CharField(max_length=255, verbose_name='ተቀባይ')
     description      = models.TextField(blank=True, verbose_name='መግለጫ / ማስታወሻ')
@@ -271,3 +336,83 @@ class DocumentForward(models.Model):
 
     def __str__(self):
         return f"{self.document.reference_number} → {self.to_department or self.to_user}"
+
+
+# ──────────────────────────────────────────────
+#  DOCUMENT ATTACHMENT (multiple files per doc)
+# ──────────────────────────────────────────────
+
+class DocumentAttachment(models.Model):
+    document    = models.ForeignKey(Document, on_delete=models.CASCADE,
+                                     related_name='attachments', verbose_name='ደብዳቤ')
+    file        = models.FileField(upload_to='attachments/%Y/%m/', verbose_name='ፋይል')
+    description = models.CharField(max_length=200, blank=True, verbose_name='መግለጫ')
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                     verbose_name='የሰቀለው')
+    uploaded_at = models.DateTimeField(auto_now_add=True, verbose_name='የሰቀለበት ጊዜ')
+
+    class Meta:
+        ordering            = ['-uploaded_at']
+        verbose_name        = 'ተያያዥ ፋይል'
+        verbose_name_plural = 'ተያያዥ ፋይሎች'
+
+    def __str__(self):
+        return f"{self.document.reference_number} - {self.file.name}"
+
+    @property
+    def filename(self):
+        import os
+        return os.path.basename(self.file.name)
+
+    @property
+    def is_pdf(self):
+        return self.filename.lower().endswith('.pdf')
+
+    @property
+    def is_image(self):
+        return self.filename.lower().rsplit('.', 1)[-1] in ['jpg', 'jpeg', 'png', 'gif', 'bmp']
+
+
+# ──────────────────────────────────────────────
+#  DELETION LOG (survives document deletion)
+# ──────────────────────────────────────────────
+
+class DeletionLog(models.Model):
+    """Records document deletions — persists even after document is gone."""
+    reference_number = models.CharField(max_length=100, verbose_name='የደብዳቤ ቁጥር')
+    title            = models.CharField(max_length=255, verbose_name='ርዕስ')
+    doc_type         = models.CharField(max_length=10, blank=True)
+    department       = models.CharField(max_length=100, blank=True)
+    deleted_by       = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                          related_name='deletions', verbose_name='የሰረዘው')
+    deleted_at       = models.DateTimeField(auto_now_add=True, verbose_name='የተሰረዘበት ጊዜ')
+    reason           = models.TextField(blank=True, verbose_name='ምክንያት')
+
+    class Meta:
+        ordering            = ['-deleted_at']
+        verbose_name        = 'የስረዛ ታሪክ'
+        verbose_name_plural = 'የስረዛ ታሪኮች'
+
+    def __str__(self):
+        return f"DELETED: {self.reference_number} by {self.deleted_by}"
+
+
+# ──────────────────────────────────────────────
+#  LOGIN ATTEMPT LOG (security)
+# ──────────────────────────────────────────────
+
+class LoginAttempt(models.Model):
+    username    = models.CharField(max_length=150, verbose_name='Username')
+    ip_address  = models.GenericIPAddressField(null=True, blank=True)
+    success     = models.BooleanField(default=False, verbose_name='Success')
+    timestamp   = models.DateTimeField(auto_now_add=True)
+    user_agent  = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        ordering            = ['-timestamp']
+        verbose_name        = 'Login Attempt'
+        verbose_name_plural = 'Login Attempts'
+
+    def __str__(self):
+        status = 'OK' if self.success else 'FAILED'
+        return f'{status} — {self.username} @ {self.timestamp}'

@@ -14,10 +14,32 @@ import json, datetime, csv, os
 
 from .models import (Document, Category, Notification,
                      InnovationProject, Training, UserProfile, ActivityLog)
-from .forms import DocumentForm, DocumentSearchForm, CategoryForm
+from .forms import DocumentForm, DocumentSearchForm, CategoryForm, InnovationProjectForm, TrainingForm
 from .activity import log_activity, notify_users
 from .decorators import registrar_required, admin_required
 from .utils import generate_reference_number, generate_qr_code
+
+
+def _get_client_ip(request):
+    """Get real IP address from request."""
+    x_forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded:
+        return x_forwarded.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR')
+
+
+def _is_locked_out(username, ip):
+    """Return True if this username or IP has too many recent failed attempts."""
+    from .models import LoginAttempt
+    import datetime as _dt
+    window = timezone.now() - _dt.timedelta(minutes=15)
+    failed = LoginAttempt.objects.filter(
+        success=False,
+        timestamp__gte=window,
+    ).filter(
+        Q(username__iexact=username) | Q(ip_address=ip)
+    ).count()
+    return failed >= 5
 
 
 # ──────────────────────────── AUTH ───────────────────────────────────
@@ -25,17 +47,68 @@ from .utils import generate_reference_number, generate_qr_code
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
-    form = AuthenticationForm(request, data=request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        user = form.get_user()
-        login(request, user)
-        messages.success(request, f'እንኳን ደህና መጡ, {user.get_full_name() or user.username}!')
-        return redirect(request.GET.get('next', 'dashboard'))
-    return render(request, 'documents/login.html', {'form': form})
+
+    ip         = _get_client_ip(request)
+    error_msg  = None
+
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+
+        # ── Check lockout ─────────────────────────────────────────
+        if _is_locked_out(username, ip):
+            error_msg = 'በጣም ብዙ ጊዜ ሞክረዋል። 15 ደቂቃ ጠብቁ።'
+            from .models import LoginAttempt
+            LoginAttempt.objects.create(
+                username=username, ip_address=ip, success=False,
+                user_agent=request.META.get('HTTP_USER_AGENT', '')[:300]
+            )
+        else:
+            form = AuthenticationForm(request, data=request.POST)
+            if form.is_valid():
+                user = form.get_user()
+                login(request, user)
+                # Log success
+                from .models import LoginAttempt
+                LoginAttempt.objects.create(
+                    username=username, ip_address=ip, success=True,
+                    user_agent=request.META.get('HTTP_USER_AGENT', '')[:300]
+                )
+                messages.success(request, f'እንኳን ደህና መጡ, {user.get_full_name() or user.username}!')
+                return redirect(request.GET.get('next', 'dashboard'))
+            else:
+                # Log failure
+                from .models import LoginAttempt
+                LoginAttempt.objects.create(
+                    username=username, ip_address=ip, success=False,
+                    user_agent=request.META.get('HTTP_USER_AGENT', '')[:300]
+                )
+                # Count remaining attempts
+                import datetime as _dt
+                window = timezone.now() - _dt.timedelta(minutes=15)
+                failed = LoginAttempt.objects.filter(
+                    success=False, timestamp__gte=window,
+                    username__iexact=username
+                ).count()
+                remaining = max(0, 5 - failed)
+                if remaining > 0:
+                    error_msg = f'ስህተት! {remaining} ጊዜ ብቻ ቀርቷል።'
+                else:
+                    error_msg = 'Account ተቆልፏል። 15 ደቂቃ ጠብቁ።'
+    else:
+        form = AuthenticationForm(request)
+
+    return render(request, 'documents/login.html', {
+        'form': AuthenticationForm(request),
+        'error_msg': error_msg,
+    })
 
 
 def logout_view(request):
-    logout(request)
+    if request.method == 'POST':
+        logout(request)
+    else:
+        logout(request)  # allow GET too for backward compatibility
     return redirect('login')
 
 
@@ -46,6 +119,21 @@ def dashboard(request):
     today      = timezone.localdate()
     week_start = today - datetime.timedelta(days=today.weekday())
     docs       = Document.objects.all()
+
+    # ── Department-based access control ──────────────────────────────
+    is_admin = request.user.is_superuser or request.user.is_staff
+    if not is_admin:
+        try:
+            role      = request.user.profile.role
+            user_dept = request.user.profile.department.strip()
+        except Exception:
+            role      = 'VIEWER'
+            user_dept = ''
+        if role != 'ADMIN':
+            if user_dept:
+                docs = docs.filter(department=user_dept)
+            else:
+                docs = docs.filter(created_by=request.user)
 
     total       = docs.count()
     incoming    = docs.filter(doc_type='INCOMING').count()
@@ -101,6 +189,23 @@ def dashboard(request):
 def document_list(request):
     form = DocumentSearchForm(request.GET or None)
     docs = Document.objects.select_related('category', 'created_by').all()
+
+    # ── Department-based access control ──────────────────────────────
+    # Admin sees all. Others see only their department's documents.
+    is_admin = request.user.is_superuser or request.user.is_staff
+    if not is_admin:
+        try:
+            role      = request.user.profile.role
+            user_dept = request.user.profile.department.strip()
+        except Exception:
+            role      = 'VIEWER'
+            user_dept = ''
+        if role != 'ADMIN':
+            if user_dept:
+                docs = docs.filter(department=user_dept)
+            else:
+                # No department set — only see own documents
+                docs = docs.filter(created_by=request.user)
 
     if form.is_valid():
         q = form.cleaned_data.get('query')
@@ -161,6 +266,21 @@ def _export_csv(queryset):
 @login_required
 def document_detail(request, pk):
     doc        = get_object_or_404(Document, pk=pk)
+
+    # ── Department-based access control ──────────────────────────────
+    is_admin = request.user.is_superuser or request.user.is_staff
+    if not is_admin:
+        try:
+            role      = request.user.profile.role
+            user_dept = request.user.profile.department.strip()
+        except Exception:
+            role      = 'VIEWER'
+            user_dept = ''
+        if role != 'ADMIN':
+            if user_dept and doc.department and doc.department != user_dept:
+                messages.error(request, 'ይህን ደብዳቤ የማየት ፈቃድ የለዎትም።')
+                return redirect('document_list')
+
     activities = doc.activities.select_related('user').order_by('-timestamp')[:20]
     today      = timezone.localdate()
     is_overdue = (doc.due_date and doc.due_date < today
@@ -180,6 +300,12 @@ def document_create(request):
     if request.method == 'POST' and form.is_valid():
         doc = form.save(commit=False)
         doc.created_by = request.user
+        # Auto-assign department from user profile
+        if not doc.department:
+            try:
+                doc.department = request.user.profile.department.strip()
+            except Exception:
+                doc.department = ''
         doc.save()
         log_activity(doc, request.user, 'ደብዳቤ ተመዝግቧል', f'"{doc.title}" ተመዝግቧል።')
         notify_users(
@@ -194,7 +320,7 @@ def document_create(request):
 # ──────────────────────────── UPDATE ─────────────────────────────────
 
 @login_required
-@admin_required
+@registrar_required
 def document_update(request, pk):
     doc        = get_object_or_404(Document, pk=pk)
     old_status = doc.status
@@ -220,9 +346,21 @@ def document_update(request, pk):
 def document_delete(request, pk):
     doc = get_object_or_404(Document, pk=pk)
     if request.method == 'POST':
-        title = doc.title
+        title  = doc.title
+        ref    = doc.reference_number
+        reason = request.POST.get('reason', '').strip()
+        # Save deletion record BEFORE deleting
+        from .models import DeletionLog
+        DeletionLog.objects.create(
+            reference_number = ref,
+            title            = title,
+            doc_type         = doc.doc_type,
+            department       = doc.department,
+            deleted_by       = request.user,
+            reason           = reason,
+        )
         doc.delete()
-        messages.warning(request, f'ደብዳቤ "{title}" ተሰርዟል።')
+        messages.warning(request, f'Document "{title}" ({ref}) deleted.')
         return redirect('document_list')
     return render(request, 'documents/document_confirm_delete.html', {'doc': doc})
 
@@ -298,6 +436,16 @@ def overdue_documents(request):
     today = timezone.localdate()
     docs  = Document.objects.filter(due_date__lt=today).exclude(
                 status__in=['COMPLETED', 'ARCHIVED']).order_by('due_date')
+    # Department scoping
+    is_admin = request.user.is_superuser or request.user.is_staff
+    if not is_admin:
+        try:
+            role      = request.user.profile.role
+            user_dept = request.user.profile.department.strip()
+        except Exception:
+            role = 'VIEWER'; user_dept = ''
+        if role != 'ADMIN':
+            docs = docs.filter(department=user_dept) if user_dept else docs.filter(created_by=request.user)
     return render(request, 'documents/overdue.html', {'docs': docs, 'today': today})
 
 
@@ -352,6 +500,7 @@ def mark_all_notifications_read(request):
 # ──────────────────────────── AUDIT TRAIL ────────────────────────────
 
 @login_required
+@admin_required
 def audit_trail(request):
     logs = ActivityLog.objects.select_related('document', 'user').order_by('-timestamp')
 
@@ -399,16 +548,21 @@ def audit_trail(request):
     paginator = Paginator(logs, 30)
     page_obj  = paginator.get_page(request.GET.get('page'))
     users     = User.objects.filter(is_active=True).order_by('username')
+    # Include deletion logs
+    from .models import DeletionLog
+    deletion_logs = DeletionLog.objects.select_related('deleted_by').order_by('-deleted_at')[:50]
     return render(request, 'documents/audit_trail.html', {
         'page_obj': page_obj, 'users': users,
         'filter_user': user_q, 'filter_action': action_q,
         'filter_date_from': date_f, 'filter_date_to': date_t,
+        'deletion_logs': deletion_logs,
     })
 
 
 # ──────────────────────────── REPORTS ────────────────────────────────
 
 @login_required
+@admin_required
 def reports(request):
     today = timezone.localdate()
     docs  = Document.objects.all()
@@ -603,8 +757,36 @@ def _export_pdf_report(docs, by_type, by_status, by_priority, monthly, today):
 def capacity_building(request):
     projects  = InnovationProject.objects.select_related('lead').order_by('-created_at')
     trainings = Training.objects.prefetch_related('participants').order_by('-date')
+
+    proj_form     = InnovationProjectForm()
+    training_form = TrainingForm()
+
+    if request.method == 'POST':
+        if not (request.user.is_staff or request.user.is_superuser):
+            messages.error(request, 'ፈቃድ የለዎትም።')
+            return redirect('capacity_building')
+
+        form_type = request.POST.get('form_type')
+
+        if form_type == 'project':
+            proj_form = InnovationProjectForm(request.POST)
+            if proj_form.is_valid():
+                proj_form.save()
+                messages.success(request, 'ፕሮጀክት ተፈጠረ!')
+                return redirect('capacity_building')
+
+        elif form_type == 'training':
+            training_form = TrainingForm(request.POST)
+            if training_form.is_valid():
+                training_form.save()
+                messages.success(request, 'ሥልጠና ተፈጠረ!')
+                return redirect('capacity_building')
+
     return render(request, 'documents/capacity_building.html', {
-        'projects': projects, 'trainings': trainings,
+        'projects':      projects,
+        'trainings':     trainings,
+        'proj_form':     proj_form,
+        'training_form': training_form,
     })
 
 
@@ -746,6 +928,41 @@ def my_documents(request):
     })
 
 
+# ──────────────────────────── WELCOME EMAIL ──────────────────────────
+
+def _send_welcome_email(user, username, password, department, role):
+    """Send welcome email to newly created user with login credentials."""
+    try:
+        from django.core.mail import send_mail
+        role_display = {
+            'ADMIN': 'Administrator', 'REGISTRAR': 'Registrar', 'VIEWER': 'Viewer',
+        }.get(role, role)
+        subject = 'Welcome to Woldiya City Administration EDMS'
+        message = f"""Dear {user.get_full_name() or username},
+
+Your account has been created on the Woldiya City Administration EDMS.
+
+Login Details:
+  Website:    https://muleedms.pythonanywhere.com
+  Username:   {username}
+  Password:   {password}
+  Role:       {role_display}
+  Department: {department or 'Not assigned'}
+
+Please login and change your password immediately.
+
+Woldiya City Administration — Innovation & Technology Group
+"""
+        send_mail(
+            subject, message,
+            getattr(settings, 'DEFAULT_FROM_EMAIL', 'edms@woldiya.gov.et'),
+            [user.email],
+            fail_silently=True,
+        )
+    except Exception:
+        pass
+
+
 # ──────────────────────────── CREATE USER ────────────────────────────
 
 @login_required
@@ -802,14 +1019,17 @@ def create_user_view(request):
         profile.phone      = phone
         profile.save()
 
-        messages.success(request, f'ተጠቃሚ "{username}" ({first_name} {last_name}) ተፈጠረ!')
+        # Send welcome email if user has email
+        if email:
+            _send_welcome_email(user, username, password, department, role)
+
+        messages.success(request, f'User "{username}" ({first_name} {last_name}) created!')
         return redirect('user_management')
 
     return render(request, 'documents/create_user.html', {
         'role_choices': UserProfile.ROLE_CHOICES,
         'post': {},
     })
-
 
 # ──────────────────────────── DOCUMENT FORWARD ───────────────────────
 
@@ -926,171 +1146,444 @@ def mark_forward_read(request, pk):
 
 @login_required
 def official_letter_pdf(request, pk):
-    """Generate official Woldiya City Administration letter PDF."""
+    """Generate full official Woldiya City Administration letter PDF."""
     doc = get_object_or_404(Document, pk=pk)
 
     try:
         from reportlab.lib.pagesizes import A4
         from reportlab.lib import colors
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.styles import ParagraphStyle
         from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
-                                        Table, TableStyle, HRFlowable, Image)
+                                        Table, TableStyle, HRFlowable, Image,
+                                        KeepTogether)
         from reportlab.lib.units import cm
         from reportlab.pdfbase import pdfmetrics
         from reportlab.pdfbase.ttfonts import TTFont
         from io import BytesIO
+        from documents.utils import to_ethiopian
 
-        # ── Register Ethiopic font ──
+        # ── Register Ethiopic font ──────────────────────────────────
         font_path = os.path.join(settings.BASE_DIR, 'static', 'fonts', 'ethiopic.ttf')
-        AM_FONT = 'Helvetica'  # fallback
-        AM_FONT_BOLD = 'Helvetica-Bold'
+        AM  = 'Helvetica'
+        AMB = 'Helvetica-Bold'
         if os.path.exists(font_path):
             try:
-                pdfmetrics.registerFont(TTFont('Ethiopic', font_path))
-                pdfmetrics.registerFont(TTFont('EthiopicBold', font_path))
-                AM_FONT = 'Ethiopic'
-                AM_FONT_BOLD = 'Ethiopic'
+                if 'Ethiopic' not in pdfmetrics.getRegisteredFontNames():
+                    pdfmetrics.registerFont(TTFont('Ethiopic', font_path))
+                AM = AMB = 'Ethiopic'
             except Exception:
                 pass
 
+        # ── Colours ────────────────────────────────────────────────
+        BRAND  = colors.HexColor('#1B4F72')
+        GOLD   = colors.HexColor('#C8960C')
+        LIGHT  = colors.HexColor('#F0F4F8')
+        BORDER = colors.HexColor('#CBD5E1')
+        WHITE  = colors.white
+        RED    = colors.HexColor('#C62828')
+
+        # ── Paragraph styles ───────────────────────────────────────
+        def sty(name, size=11, bold=False, color=colors.black, align=0, leading=None, space_after=6):
+            return ParagraphStyle(
+                name, fontName=AMB if bold else AM,
+                fontSize=size, textColor=color,
+                alignment=align, leading=leading or size * 1.4,
+                spaceAfter=space_after,
+            )
+
+        # ── Page setup ─────────────────────────────────────────────
         buf  = BytesIO()
-        page = SimpleDocTemplate(buf, pagesize=A4,
-                                  rightMargin=2.5*cm, leftMargin=2.5*cm,
-                                  topMargin=2*cm, bottomMargin=2*cm)
+        W, H = A4
+        page = SimpleDocTemplate(
+            buf, pagesize=A4,
+            rightMargin=2.2*cm, leftMargin=2.2*cm,
+            topMargin=1.8*cm, bottomMargin=2*cm,
+            title=f'{doc.reference_number} - {doc.title}',
+        )
+        story = []
+        PW = W - 4.4*cm  # usable width
 
-        styles = getSampleStyleSheet()
-        brand  = colors.HexColor('#1B4F72')
-        gold   = colors.HexColor('#C8960C')
-        story  = []
-
-        # Amharic paragraph styles using the registered font
-        am_normal = ParagraphStyle('am_normal', fontName=AM_FONT, fontSize=11, leading=16)
-        am_bold   = ParagraphStyle('am_bold',   fontName=AM_FONT_BOLD, fontSize=11, leading=16)
-        am_header = ParagraphStyle('am_header', fontName=AM_FONT_BOLD, fontSize=14, textColor=brand, leading=20)
-        am_small  = ParagraphStyle('am_small',  fontName=AM_FONT, fontSize=9, textColor=colors.HexColor('#1B4F72'), leading=13)
-        am_ref    = ParagraphStyle('am_ref',    fontName=AM_FONT, fontSize=10, textColor=colors.HexColor('#374151'), leading=15)
-
-        # ── Header with logo ──
-        header_data = [[
-            Paragraph('ወልድያ ከተማ አስተዳደር', am_header),
-            Paragraph(
-                f'ቁጥር: {doc.reference_number}<br/>'
-                f'ቀን: {doc.created_at.strftime("%d/%m/%Y")}<br/>'
-                f'ዓይነት: {doc.get_doc_type_display()}',
-                am_ref
-            ),
-        ]]
-
-        # Try to add logo
+        # ══════════════════════════════════════════════════════════
+        # HEADER — logo + org name + ref/date block
+        # ══════════════════════════════════════════════════════════
         logo_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'woldiya_logo.png')
+        et_date   = to_ethiopian(doc.created_at)
+        et_str    = et_date['full'] if et_date else ''
+        gc_str    = doc.created_at.strftime('%d/%m/%Y')
+
+        ref_block = Paragraph(
+            f'<b>ቁጥር:</b> {doc.reference_number}<br/>'
+            f'<b>ቀን:</b> {gc_str}<br/>'
+            f'<b>ኢትዮ. ቀን:</b> {et_str}<br/>'
+            f'<b>ዓይነት:</b> {doc.get_doc_type_display()}',
+            sty('ref', size=9.5, color=BRAND)
+        )
+
+        org_block = Paragraph(
+            f'<b>ወልድያ ከተማ አስተዳደር</b><br/>'
+            f'<font size="9">WOLDIYA CITY ADMINISTRATION</font><br/>'
+            f'<font size="8" color="#546E7A">ፈጠራ እና ቴክኖሎጂ — EDMS</font>',
+            sty('org', size=15, bold=True, color=BRAND, align=1)
+        )
+
         if os.path.exists(logo_path):
             try:
-                logo_img = Image(logo_path, width=2.5*cm, height=2.5*cm)
-                header_data[0].insert(0, logo_img)
-                col_widths = [2.8*cm, 10*cm, 4*cm]
+                logo_img  = Image(logo_path, width=2.8*cm, height=2.8*cm)
+                hdr_data  = [[logo_img, org_block, ref_block]]
+                hdr_widths = [3.0*cm, PW - 3.0*cm - 5.5*cm, 5.5*cm]
             except Exception:
-                col_widths = [12*cm, 4*cm]
+                hdr_data  = [[org_block, ref_block]]
+                hdr_widths = [PW - 5.5*cm, 5.5*cm]
         else:
-            col_widths = [12*cm, 4*cm]
+            hdr_data  = [[org_block, ref_block]]
+            hdr_widths = [PW - 5.5*cm, 5.5*cm]
 
-        t = Table(header_data, colWidths=col_widths)
-        t.setStyle(TableStyle([
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('ALIGN',  (-1,0), (-1,-1), 'RIGHT'),
+        hdr = Table(hdr_data, colWidths=hdr_widths)
+        hdr.setStyle(TableStyle([
+            ('VALIGN',   (0,0), (-1,-1), 'MIDDLE'),
+            ('ALIGN',    (-1,0), (-1,-1), 'RIGHT'),
+            ('LEFTPADDING',  (0,0), (-1,-1), 4),
+            ('RIGHTPADDING', (0,0), (-1,-1), 4),
         ]))
-        story.append(t)
-        story.append(HRFlowable(width='100%', color=gold, thickness=3, spaceAfter=16))
+        story.append(hdr)
+        story.append(Spacer(1, 6))
+        story.append(HRFlowable(width='100%', color=GOLD, thickness=3, spaceAfter=0))
+        story.append(HRFlowable(width='100%', color=BRAND, thickness=1, spaceBefore=2, spaceAfter=10))
 
-        # ── Document type banner ──
-        type_style = ParagraphStyle('type', fontSize=14, fontName=AM_FONT_BOLD,
-                                     textColor=colors.white, backColor=brand,
-                                     alignment=1, spaceAfter=16, leading=20,
-                                     leftIndent=-20, rightIndent=-20)
-        story.append(Paragraph(doc.get_doc_type_display(), type_style))
+        # ══════════════════════════════════════════════════════════
+        # DOCUMENT TYPE BANNER
+        # ══════════════════════════════════════════════════════════
+        banner_color = {
+            'INCOMING': BRAND,
+            'OUTGOING': colors.HexColor('#6A1B9A'),
+            'INTERNAL': colors.HexColor('#00695C'),
+        }.get(doc.doc_type, BRAND)
 
-        # ── Recipients ──
-        recip_data = [
-            [Paragraph('ለ:', am_bold), Paragraph(doc.receiver, am_normal)],
-            [Paragraph('ከ:', am_bold), Paragraph(doc.sender, am_normal)],
-            [Paragraph('ጉዳዩ:', am_bold), Paragraph(doc.title, am_bold)],
+        banner = Table(
+            [[Paragraph(doc.get_doc_type_display(),
+                        sty('ban', size=13, bold=True, color=WHITE, align=1, space_after=0))]],
+            colWidths=[PW]
+        )
+        banner.setStyle(TableStyle([
+            ('BACKGROUND',   (0,0), (-1,-1), banner_color),
+            ('TOPPADDING',   (0,0), (-1,-1), 8),
+            ('BOTTOMPADDING',(0,0), (-1,-1), 8),
+            ('LEFTPADDING',  (0,0), (-1,-1), 10),
+            ('RIGHTPADDING', (0,0), (-1,-1), 10),
+        ]))
+        story.append(banner)
+        story.append(Spacer(1, 14))
+
+        # ══════════════════════════════════════════════════════════
+        # TO / FROM / SUBJECT block
+        # ══════════════════════════════════════════════════════════
+        to_from = [
+            [Paragraph('ለ  :', sty('lbl', bold=True, color=BRAND)),
+             Paragraph(doc.receiver or '—', sty('val', size=11))],
+            [Paragraph('ከ  :', sty('lbl', bold=True, color=BRAND)),
+             Paragraph(doc.sender or '—',   sty('val', size=11))],
+            [Paragraph('ጉዳዩ:', sty('lbl', bold=True, color=BRAND)),
+             Paragraph(f'<b>{doc.title}</b>', sty('val', size=11, bold=True))],
         ]
         if doc.due_date:
-            recip_data.append([
-                Paragraph('የቀን ገደብ:', am_bold),
-                Paragraph(str(doc.due_date), am_normal),
+            et_due = to_ethiopian(doc.due_date)
+            due_str = f"{doc.due_date}  ({et_due['full'] if et_due else ''})"
+            to_from.append([
+                Paragraph('የቀን ገደብ:', sty('lbl', bold=True, color=RED)),
+                Paragraph(f'<font color="#C62828"><b>{due_str}</b></font>', sty('val', size=10)),
+            ])
+        if doc.assigned_to:
+            to_from.append([
+                Paragraph('ተሰጥቷል:', sty('lbl', bold=True, color=BRAND)),
+                Paragraph(doc.assigned_to.get_full_name() or doc.assigned_to.username, sty('val', size=10)),
             ])
 
-        t2 = Table(recip_data, colWidths=[3.5*cm, 12.5*cm])
-        t2.setStyle(TableStyle([
-            ('FONTSIZE',  (0,0), (-1,-1), 11),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-            ('TOPPADDING',    (0,0), (-1,-1), 6),
-            ('LINEBELOW', (0,0), (-1,-2), 0.5, colors.HexColor('#E2E8F0')),
+        tf_table = Table(to_from, colWidths=[3.2*cm, PW - 3.2*cm])
+        tf_table.setStyle(TableStyle([
+            ('TOPPADDING',    (0,0), (-1,-1), 7),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 7),
+            ('LEFTPADDING',   (0,0), (-1,-1), 4),
+            ('LINEBELOW', (0,0), (-1,-2), 0.5, BORDER),
+            ('VALIGN',    (0,0), (-1,-1), 'TOP'),
         ]))
-        story.append(t2)
-        story.append(Spacer(1, 16))
-        story.append(HRFlowable(width='100%', color=colors.HexColor('#E2E8F0'), thickness=1))
+        story.append(tf_table)
         story.append(Spacer(1, 12))
+        story.append(HRFlowable(width='100%', color=BORDER, thickness=0.8, spaceAfter=12))
 
-        # ── Body / Description ──
-        if doc.description:
-            story.append(Paragraph('ዝርዝር ይዘት / ማብራሪያ:',
-                                    ParagraphStyle('h', fontSize=11, fontName=AM_FONT_BOLD,
-                                                   textColor=brand, spaceAfter=8)))
-            story.append(Paragraph(doc.description.replace('\n', '<br/>'),
-                                    ParagraphStyle('body', fontName=AM_FONT, fontSize=11,
-                                                   leading=18, spaceAfter=20)))
+        # ══════════════════════════════════════════════════════════
+        # BODY / DESCRIPTION
+        # ══════════════════════════════════════════════════════════
+        story.append(Paragraph('ዝርዝር ይዘት / ማብራሪያ:', sty('h2', size=11, bold=True, color=BRAND, space_after=8)))
 
-        # ── Status & Priority ──
-        story.append(Spacer(1, 8))
-        status_data = [[
-            Paragraph(f'ሁኔታ: {doc.get_status_display()}', ParagraphStyle('s1', fontName=AM_FONT, fontSize=10)),
-            Paragraph(f'ቅድሚያ: {doc.get_priority_display()}', ParagraphStyle('s2', fontName=AM_FONT, fontSize=10)),
-            Paragraph(f'ምድብ: {doc.category or "—"}', ParagraphStyle('s3', fontName=AM_FONT, fontSize=10)),
-        ]]
-        t3 = Table(status_data, colWidths=[5*cm, 5*cm, 6*cm])
-        t3.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F0F4F8')),
-            ('FONTSIZE', (0,0), (-1,-1), 10),
-            ('PADDING', (0,0), (-1,-1), 8),
-            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-        ]))
-        story.append(t3)
-        story.append(Spacer(1, 40))
-
-        # ── Signature area ──
-        sig_data = [[
-            Paragraph('___________________________\nየሰነዱ አዘጋጅ ፊርማ',
-                       ParagraphStyle('sig', fontName=AM_FONT, fontSize=10, alignment=1, leading=14)),
-            Paragraph('___________________________\nኃላፊ ፊርማ',
-                       ParagraphStyle('sig2', fontName=AM_FONT, fontSize=10, alignment=1, leading=14)),
-            Paragraph('___________________________\nቀን',
-                       ParagraphStyle('sig3', fontName=AM_FONT, fontSize=10, alignment=1, leading=14)),
-        ]]
-        t4 = Table(sig_data, colWidths=[5.5*cm, 5.5*cm, 5*cm])
-        t4.setStyle(TableStyle([('TOPPADDING', (0,0), (-1,-1), 20)]))
-        story.append(t4)
-
-        # ── Footer ──
-        story.append(Spacer(1, 20))
-        story.append(HRFlowable(width='100%', color=gold, thickness=2))
+        body_text = doc.description.strip() if doc.description else '— (ምንም ዝርዝር አልተጻፈም) —'
         story.append(Paragraph(
-            f'ወልድያ ከተማ አስተዳደር — ፈጠራ እና ቴክኖሎጂ ቡድን | EDMS | '
-            f'ህትመት ቀን: {timezone.localdate()} | ቁጥር: {doc.reference_number}',
-            ParagraphStyle('footer', fontName=AM_FONT, fontSize=8, alignment=1, spaceAfter=0, leading=12)
+            body_text.replace('\n', '<br/>'),
+            sty('body', size=11, leading=20, space_after=16)
         ))
+        story.append(Spacer(1, 8))
 
+        # ══════════════════════════════════════════════════════════
+        # STATUS / PRIORITY / CATEGORY summary bar
+        # ══════════════════════════════════════════════════════════
+        status_color = {
+            'DRAFT':        colors.HexColor('#546E7A'),
+            'PENDING':      colors.HexColor('#E65100'),
+            'IN_PROGRESS':  colors.HexColor('#1976D2'),
+            'UNDER_REVIEW': colors.HexColor('#6A1B9A'),
+            'APPROVED':     colors.HexColor('#2E7D32'),
+            'COMPLETED':    colors.HexColor('#1B5E20'),
+            'ARCHIVED':     colors.HexColor('#455A64'),
+        }.get(doc.status, BRAND)
+
+        priority_color = {
+            'LOW': colors.HexColor('#388E3C'),
+            'MEDIUM': colors.HexColor('#0277BD'),
+            'HIGH': colors.HexColor('#EF6C00'),
+            'URGENT': RED,
+        }.get(doc.priority, BRAND)
+
+        summary = Table([[
+            Paragraph(f'ሁኔታ: {doc.get_status_display()}',   sty('s1', size=9.5, bold=True, color=WHITE, align=1, space_after=0)),
+            Paragraph(f'ቅድሚያ: {doc.get_priority_display()}', sty('s2', size=9.5, bold=True, color=WHITE, align=1, space_after=0)),
+            Paragraph(f'ምድብ: {doc.category or "—"}',         sty('s3', size=9.5, color=BRAND, align=1, space_after=0)),
+        ]], colWidths=[PW/3, PW/3, PW/3])
+        summary.setStyle(TableStyle([
+            ('BACKGROUND',   (0,0), (0,0), status_color),
+            ('BACKGROUND',   (1,0), (1,0), priority_color),
+            ('BACKGROUND',   (2,0), (2,0), LIGHT),
+            ('TOPPADDING',   (0,0), (-1,-1), 7),
+            ('BOTTOMPADDING',(0,0), (-1,-1), 7),
+            ('BOX',          (0,0), (-1,-1), 0.5, BORDER),
+            ('INNERGRID',    (0,0), (-1,-1), 0.5, BORDER),
+            ('ROUNDEDCORNERS', [4]),
+        ]))
+        story.append(summary)
+
+        # ══════════════════════════════════════════════════════════
+        # ══════════════════════════════════════════════════════════
+        # SIGNATURE AREA (pushed to bottom)
+        # ══════════════════════════════════════════════════════════
+        story.append(Spacer(1, 60))
+
+        creator_name = doc.created_by.get_full_name() or doc.created_by.username if doc.created_by else ''
+        sig = Table([[
+            Paragraph(f'<b>የሰነዱ አዘጋጅ ፊርማ</b><br/><font size="8">{creator_name}</font>',
+                       sty('sig1', size=10, align=1, leading=16, space_after=0)),
+            Paragraph(f'<b>ኃላፊ / አፅዳቂ ፊርማ</b>',
+                       sty('sig2', size=10, align=1, leading=16, space_after=0)),
+            Paragraph(f'<b>ቀን / Date</b><br/><font size="8">{gc_str}</font>',
+                       sty('sig3', size=10, align=1, leading=16, space_after=0)),
+        ]], colWidths=[PW/3, PW/3, PW/3])
+        sig.setStyle(TableStyle([
+            ('TOPPADDING',    (0,0), (-1,-1), 30),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+            ('ALIGN',         (0,0), (-1,-1), 'CENTER'),
+            ('LINEABOVE',     (0,0), (0,0), 1.2, colors.HexColor('#374151')),
+            ('LINEABOVE',     (1,0), (1,0), 1.2, colors.HexColor('#374151')),
+            ('LINEABOVE',     (2,0), (2,0), 1.2, colors.HexColor('#374151')),
+            ('LEFTPADDING',   (0,0), (-1,-1), 12),
+            ('RIGHTPADDING',  (0,0), (-1,-1), 12),
+        ]))
+        story.append(KeepTogether([sig]))
+
+        # ══════════════════════════════════════════════════════════
+        # FOOTER
+        # ══════════════════════════════════════════════════════════
+        story.append(Spacer(1, 24))
+        story.append(HRFlowable(width='100%', color=GOLD, thickness=3, spaceAfter=2))
+        story.append(HRFlowable(width='100%', color=BRAND, thickness=1.5, spaceAfter=6))
+
+        footer_table = Table([[
+            Paragraph(
+                f'<b>ወልድያ ከተማ አስተዳደር</b><br/>'
+                f'<font size="7">WOLDIYA CITY ADMINISTRATION</font>',
+                sty('ft1', size=8, color=BRAND, align=0, leading=11, space_after=0)
+            ),
+            Paragraph(
+                f'<font size="7">ፈጠራ እና ቴክኖሎጂ ቡድን | EDMS</font><br/>'
+                f'<font size="7">muleedms.pythonanywhere.com</font>',
+                sty('ft2', size=8, color=BRAND, align=1, leading=11, space_after=0)
+            ),
+            Paragraph(
+                f'<b>ቁጥር:</b> {doc.reference_number}<br/>'
+                f'<font size="7">ህትመት: {gc_str}</font>',
+                sty('ft3', size=8, color=BRAND, align=2, leading=11, space_after=0)
+            ),
+        ]], colWidths=[PW/3, PW/3, PW/3])
+        footer_table.setStyle(TableStyle([
+            ('TOPPADDING',   (0,0), (-1,-1), 4),
+            ('BOTTOMPADDING',(0,0), (-1,-1), 4),
+            ('LEFTPADDING',  (0,0), (-1,-1), 0),
+            ('RIGHTPADDING', (0,0), (-1,-1), 0),
+            ('VALIGN',       (0,0), (-1,-1), 'TOP'),
+        ]))
+        story.append(footer_table)
+        story.append(HRFlowable(width='100%', color=GOLD, thickness=1.5, spaceBefore=4))
+
+        # ── Build and return ───────────────────────────────────────
         page.build(story)
         buf.seek(0)
+        safe_ref = doc.reference_number.replace('/', '_').replace('.', '_')
         response = HttpResponse(buf.getvalue(), content_type='application/pdf')
-        response['Content-Disposition'] = (
-            f'inline; filename="letter_{doc.reference_number}.pdf"'
-        )
+        response['Content-Disposition'] = f'attachment; filename="letter_{safe_ref}.pdf"'
         return response
 
     except ImportError:
-        messages.error(request, 'reportlab አልተጫነም። pip install reportlab')
+        messages.error(request, 'reportlab not installed.')
         return redirect('document_detail', pk=pk)
     except Exception as e:
-        messages.error(request, f'PDF ስህተት: {e}')
+        messages.error(request, f'PDF error: {e}')
         return redirect('document_detail', pk=pk)
+
+
+# ──────────────────────────── PASSWORD CHANGE ────────────────────────
+
+@login_required
+def change_password(request):
+    if request.method == 'POST':
+        current  = request.POST.get('current_password', '').strip()
+        new_pw   = request.POST.get('new_password', '').strip()
+        confirm  = request.POST.get('confirm_password', '').strip()
+
+        if not request.user.check_password(current):
+            messages.error(request, 'የአሁኑ ፓስዎርድ ትክክል አይደለም።')
+        elif len(new_pw) < 8:
+            messages.error(request, 'አዲሱ ፓስዎርድ ቢያንስ 8 ፊደላት ይኑሩት።')
+        elif new_pw != confirm:
+            messages.error(request, 'ፓስዎርዶች አይዛመዱም።')
+        else:
+            request.user.set_password(new_pw)
+            request.user.save()
+            from django.contrib.auth import update_session_auth_hash
+            update_session_auth_hash(request, request.user)
+            messages.success(request, 'ፓስዎርድ ተቀይሯል!')
+            return redirect('profile')
+
+    return render(request, 'documents/change_password.html')
+
+
+# ──────────────────────────── QR SCANNER ─────────────────────────────
+
+@login_required
+def qr_scanner(request):
+    """QR code scanner page — scans QR and redirects to document."""
+    if request.method == 'POST':
+        scanned = request.POST.get('scanned_url', '').strip()
+        if not scanned:
+            messages.error(request, 'QR Code አልተነበበም። እንደገና ይሞክሩ።')
+            return redirect('qr_scanner')
+
+        # Extract document ID from URL like /documents/5/ or full URL
+        import re
+        match = re.search(r'/documents/(\d+)/', scanned)
+        if match:
+            doc_id = match.group(1)
+            return redirect('document_detail', pk=doc_id)
+
+        # Try reference number search
+        doc = Document.objects.filter(reference_number__iexact=scanned).first()
+        if doc:
+            return redirect('document_detail', pk=doc.pk)
+
+        messages.warning(request, f'ደብዳቤ አልተገኘም። የተነበበው: {scanned[:100]}')
+        return redirect('qr_scanner')
+
+    return render(request, 'documents/qr_scanner.html')
+
+
+# ──────────────────────────── ADMIN RESET PASSWORD ───────────────────
+
+@login_required
+def reset_user_password(request, user_id):
+    """Admin resets any user's password."""
+    if not (request.user.is_staff or request.user.is_superuser):
+        messages.error(request, 'Permission denied.')
+        return redirect('dashboard')
+
+    target = get_object_or_404(User, pk=user_id)
+
+    if request.method == 'POST':
+        new_pw  = request.POST.get('new_password', '').strip()
+        confirm = request.POST.get('confirm_password', '').strip()
+
+        if len(new_pw) < 6:
+            messages.error(request, 'Password must be at least 6 characters.')
+        elif new_pw != confirm:
+            messages.error(request, 'Passwords do not match.')
+        else:
+            target.set_password(new_pw)
+            target.save()
+            # Send email notification
+            if target.email:
+                try:
+                    from django.core.mail import send_mail
+                    send_mail(
+                        'Your EDMS Password Has Been Reset',
+                        f'Dear {target.get_full_name() or target.username},\n\n'
+                        f'Your password has been reset by the administrator.\n\n'
+                        f'New password: {new_pw}\n\n'
+                        f'Please login and change your password immediately.\n\n'
+                        f'Website: https://muleedms.pythonanywhere.com\n\n'
+                        f'Woldiya City Administration EDMS',
+                        settings.DEFAULT_FROM_EMAIL,
+                        [target.email],
+                        fail_silently=True,
+                    )
+                except Exception:
+                    pass
+            messages.success(request, f'Password for "{target.username}" reset successfully!')
+            return redirect('user_management')
+
+    return render(request, 'documents/reset_password.html', {'target': target})
+
+
+# ──────────────────────────── ATTACHMENTS ────────────────────────────
+
+@login_required
+@registrar_required
+@require_POST
+def upload_attachment(request, pk):
+    """Upload additional files to a document."""
+    from .models import DocumentAttachment
+    doc  = get_object_or_404(Document, pk=pk)
+    file = request.FILES.get('file')
+    desc = request.POST.get('description', '').strip()
+
+    if not file:
+        messages.error(request, 'No file selected.')
+        return redirect('document_detail', pk=pk)
+
+    # Validate extension
+    ext     = file.name.rsplit('.', 1)[-1].lower()
+    allowed = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'tiff', 'bmp', 'doc', 'docx']
+    if ext not in allowed:
+        messages.error(request, f'File type .{ext} not allowed.')
+        return redirect('document_detail', pk=pk)
+
+    if file.size > 20 * 1024 * 1024:
+        messages.error(request, 'File exceeds 20MB limit.')
+        return redirect('document_detail', pk=pk)
+
+    DocumentAttachment.objects.create(
+        document=doc,
+        file=file,
+        description=desc,
+        uploaded_by=request.user,
+    )
+    log_activity(doc, request.user, 'Attachment uploaded', f'"{file.name}" added.')
+    messages.success(request, f'File "{file.name}" uploaded successfully!')
+    return redirect('document_detail', pk=pk)
+
+
+@login_required
+@admin_required
+def delete_attachment(request, pk, att_id):
+    """Delete an attachment from a document."""
+    from .models import DocumentAttachment
+    att = get_object_or_404(DocumentAttachment, pk=att_id, document_id=pk)
+    if request.method == 'POST':
+        name = att.filename
+        att.file.delete(save=False)
+        att.delete()
+        messages.warning(request, f'Attachment "{name}" deleted.')
+    return redirect('document_detail', pk=pk)
