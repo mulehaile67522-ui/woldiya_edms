@@ -129,11 +129,33 @@ def dashboard(request):
         except Exception:
             role      = 'VIEWER'
             user_dept = ''
-        if role != 'ADMIN':
+
+        # ── Least Privilege: filter docs by role ─────────────────────
+        from .models import DocumentForward
+        from django.db.models import Q
+        fwd_ids      = list(DocumentForward.objects.filter(to_user=request.user).values_list('document_id', flat=True))
+        assigned_ids = list(docs.filter(assigned_to=request.user).values_list('pk', flat=True))
+
+        if role == 'ADMIN':
+            pass  # IT admin sees all for system support
+        elif role in ('MAYOR', 'VICE_MAYOR'):
+            # Executive: only Mayor office docs + forwarded/assigned to them
+            docs = docs.filter(
+                Q(department='ከንቲባ ጽፈት ቤት') |
+                Q(receiver__icontains='ከንቲባ') |
+                Q(pk__in=fwd_ids) |
+                Q(pk__in=assigned_ids)
+            )
+        elif role == 'DEPT_HEAD':
             if user_dept:
-                docs = docs.filter(department=user_dept)
-            else:
-                docs = docs.filter(created_by=request.user)
+                docs = docs.filter(Q(department=user_dept) | Q(pk__in=fwd_ids) | Q(pk__in=assigned_ids))
+        elif role in ('REGISTRAR', 'SUBCITY'):
+            if user_dept:
+                docs = docs.filter(Q(department=user_dept) | Q(pk__in=fwd_ids) | Q(pk__in=assigned_ids))
+        elif role == 'VIEWER':
+            docs = docs.filter(Q(pk__in=fwd_ids) | Q(pk__in=assigned_ids))
+        else:
+            docs = docs.filter(created_by=request.user)
 
     total       = docs.count()
     incoming    = docs.filter(doc_type='INCOMING').count()
@@ -200,12 +222,23 @@ def document_list(request):
         except Exception:
             role      = 'VIEWER'
             user_dept = ''
-        if role != 'ADMIN':
+
+        # ── Least Privilege ───────────────────────────────────────────
+        from .models import DocumentForward
+        from django.db.models import Q as DQ
+        fwd_ids      = list(DocumentForward.objects.filter(to_user=request.user).values_list('document_id', flat=True))
+        assigned_ids = list(docs.filter(assigned_to=request.user).values_list('pk', flat=True))
+        if role == 'ADMIN':
+            pass
+        elif role in ('MAYOR', 'VICE_MAYOR'):
+            docs = docs.filter(DQ(department='ከንቲባ ጽፈት ቤት') | DQ(receiver__icontains='ከንቲባ') | DQ(pk__in=fwd_ids) | DQ(pk__in=assigned_ids))
+        elif role in ('DEPT_HEAD', 'REGISTRAR', 'SUBCITY'):
             if user_dept:
-                docs = docs.filter(department=user_dept)
-            else:
-                # No department set — only see own documents
-                docs = docs.filter(created_by=request.user)
+                docs = docs.filter(DQ(department=user_dept) | DQ(pk__in=fwd_ids) | DQ(pk__in=assigned_ids))
+        elif role == 'VIEWER':
+            docs = docs.filter(DQ(pk__in=fwd_ids) | DQ(pk__in=assigned_ids))
+        else:
+            docs = docs.filter(created_by=request.user)
 
     if form.is_valid():
         q = form.cleaned_data.get('query')
@@ -458,8 +491,20 @@ def overdue_documents(request):
             user_dept = request.user.profile.department.strip()
         except Exception:
             role = 'VIEWER'; user_dept = ''
-        if role != 'ADMIN':
-            docs = docs.filter(department=user_dept) if user_dept else docs.filter(created_by=request.user)
+        from .models import DocumentForward
+        from django.db.models import Q as DQ
+        fwd_ids = list(DocumentForward.objects.filter(to_user=request.user).values_list('document_id', flat=True))
+        if role == 'ADMIN':
+            pass
+        elif role in ('MAYOR', 'VICE_MAYOR'):
+            docs = docs.filter(DQ(department='ከንቲባ ጽፈት ቤት') | DQ(pk__in=fwd_ids))
+        elif role in ('DEPT_HEAD', 'REGISTRAR', 'SUBCITY'):
+            if user_dept:
+                docs = docs.filter(DQ(department=user_dept) | DQ(pk__in=fwd_ids))
+        elif role == 'VIEWER':
+            docs = docs.filter(pk__in=fwd_ids)
+        else:
+            docs = docs.filter(created_by=request.user)
     return render(request, 'documents/overdue.html', {'docs': docs, 'today': today})
 
 
