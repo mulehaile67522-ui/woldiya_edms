@@ -276,7 +276,21 @@ def document_detail(request, pk):
         except Exception:
             role      = 'VIEWER'
             user_dept = ''
-        if role != 'ADMIN':
+
+        # MAYOR and VICE_MAYOR see ALL documents
+        sees_all = role in ('MAYOR', 'VICE_MAYOR', 'ADMIN')
+
+        # Check if document was forwarded to this user
+        was_forwarded = False
+        try:
+            from .models import DocumentForward
+            was_forwarded = DocumentForward.objects.filter(
+                document=doc, to_user=request.user
+            ).exists()
+        except Exception:
+            pass
+
+        if not sees_all and not was_forwarded:
             if user_dept and doc.department and doc.department != user_dept:
                 messages.error(request, 'ይህን ደብዳቤ የማየት ፈቃድ የለዎትም።')
                 return redirect('document_list')

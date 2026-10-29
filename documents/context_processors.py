@@ -23,19 +23,32 @@ def notifications(request):
 
     today_count = Document.objects.filter(created_at__date=today).count()
 
-    user_can_edit = False
-    try:
-        if hasattr(request.user, 'profile'):
-            user_can_edit = request.user.profile.role in ['ADMIN', 'REGISTRAR']
-    except Exception:
-        pass
-    if request.user.is_staff or request.user.is_superuser:
-        user_can_edit = True
+    # ── Role detection ─────────────────────────────────────────────
+    user_role = 'VIEWER'
+    if request.user.is_superuser or request.user.is_staff:
+        user_role = 'ADMIN'
+    else:
+        try:
+            user_role = request.user.profile.role
+        except Exception:
+            user_role = 'VIEWER'
+
+    # Role levels
+    user_is_admin     = user_role in ('ADMIN', 'MAYOR', 'VICE_MAYOR')
+    user_is_registrar = user_role in ('ADMIN', 'MAYOR', 'VICE_MAYOR', 'DEPT_HEAD', 'REGISTRAR', 'SUBCITY')
+    user_can_edit     = user_role in ('ADMIN', 'MAYOR', 'VICE_MAYOR', 'DEPT_HEAD')
+    user_can_create   = user_role in ('ADMIN', 'MAYOR', 'VICE_MAYOR', 'DEPT_HEAD', 'REGISTRAR', 'SUBCITY')
+    user_sees_all     = user_role in ('ADMIN', 'MAYOR', 'VICE_MAYOR')
 
     return {
         'unread_notifications': unread_notifications,
         'overdue_count':        overdue_count,
         'urgent_count':         urgent_count,
         'today_count':          today_count,
+        'user_role':            user_role,
+        'user_is_admin':        user_is_admin,
+        'user_is_registrar':    user_is_registrar,
         'user_can_edit':        user_can_edit,
+        'user_can_create':      user_can_create,
+        'user_sees_all':        user_sees_all,
     }
