@@ -59,4 +59,15 @@ urlpatterns = [
     path('documents/<int:pk>/letter-pdf/',   views.official_letter_pdf, name='official_letter_pdf'),
     path('inbox/',                           views.inbox,              name='inbox'),
     path('inbox/<int:pk>/read/',             views.mark_forward_read,  name='mark_forward_read'),
+    path('change-password/',                 views.change_password,    name='change_password'),
+    path('scanner/',                         views.qr_scanner,         name='qr_scanner'),
+    path('users/<int:user_id>/reset-password/', views.reset_user_password, name='reset_user_password'),
+    path('documents/<int:pk>/attachments/upload/', views.upload_attachment,  name='upload_attachment'),
+    path('documents/<int:pk>/attachments/<int:att_id>/delete/', views.delete_attachment, name='delete_attachment'),
+
+    # Approval Workflow
+    path('documents/<int:pk>/approve/', views.approve_document, name='approve_document'),
+
+    # Mayor Analytics Dashboard
+    path('mayor-dashboard/', views.mayor_dashboard, name='mayor_dashboard'),
 ]

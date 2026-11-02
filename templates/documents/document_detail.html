@@ -1,5 +1,6 @@
 {% extends "documents/base.html" %}
 {% load static %}
+{% load et_date %}
 {% block title %}{{ doc.reference_number }} — ወልድያ EDMS{% endblock %}
 {% block page_title %}{{ doc.title|truncatechars:55 }}{% endblock %}
 {% block page_subtitle %}ቁጥር: {{ doc.reference_number }}{% endblock %}
@@ -79,6 +80,13 @@
         <span class="eb eb-{{ doc.status }} px-3 py-1" style="font-size:.8rem;">{{ doc.get_status_display }}</span>
         <span class="eb eb-{{ doc.priority }} px-3 py-1" style="font-size:.8rem;">{{ doc.get_priority_display }}</span>
         {% if doc.category %}<span class="badge bg-light text-dark border px-3 py-1" style="font-size:.8rem;">{{ doc.category }}</span>{% endif %}
+        {% if doc.confidentiality %}
+        <span class="px-3 py-1 rounded fw-bold" style="font-size:.8rem;
+          background:{% if doc.confidentiality == 'SECRET' %}#7f1d1d{% elif doc.confidentiality == 'CONFIDENTIAL' %}#78350f{% else %}#14532d{% endif %};
+          color:#fff;">
+          {% if doc.confidentiality == 'SECRET' %}🔴 ምስጢር{% elif doc.confidentiality == 'CONFIDENTIAL' %}🔒 ሚስጥራዊ{% else %}🌐 ይፋዊ{% endif %}
+        </span>
+        {% endif %}
       </div>
 
       <div class="info-grid mb-4">
@@ -102,6 +110,7 @@
         <div>
           <div class="text-muted small mb-1">የደረሰበት ቀን</div>
           <div>{{ doc.date_received }}</div>
+          <div class="text-muted small">{{ doc.date_received|et_date }}</div>
         </div>
         {% endif %}
         {% if doc.due_date %}
@@ -125,6 +134,7 @@
       <div class="row g-2 pt-3 border-top" style="font-size:.8rem;">
         <div class="col-6 col-md-4">
           <span class="text-muted">የተመዘገበ:</span> {{ doc.created_at|date:"d/m/Y H:i" }}
+          <div class="text-muted" style="font-size:.72rem;">{{ doc.created_at|et_date }}</div>
         </div>
         <div class="col-6 col-md-4">
           <span class="text-muted">ዘምኗል:</span> {{ doc.updated_at|date:"d/m/Y H:i" }}
@@ -218,6 +228,37 @@
         </button>
       </form>
     </div>
+    {% endif %}
+
+    <!-- Approval Workflow -->
+    {% if user_role in "DEPT_HEAD VICE_MAYOR MAYOR ADMIN" %}
+    {% with can_approve=True %}
+    {% if doc.status in "PENDING DRAFT IN_PROGRESS UNDER_REVIEW" %}
+    <div class="page-card p-4 mb-4 no-print">
+      <h6 class="fw-bold mb-3" style="color:var(--brand);">
+        <i class="bi bi-patch-check-fill me-2"></i>የደብዳቤ ማፅደቂያ
+      </h6>
+      <div class="mb-2 small text-muted">
+        ሁኔታ: <span class="eb eb-{{ doc.status }}">{{ doc.get_status_display }}</span>
+      </div>
+      <form method="post" action="{% url 'approve_document' doc.pk %}">
+        {% csrf_token %}
+        <textarea name="note" class="form-control mb-2" rows="2"
+                  placeholder="ማስታወሻ (ምክንያት)..." style="font-size:.85rem;"></textarea>
+        <div class="d-flex gap-2">
+          <button type="submit" name="action" value="approve"
+                  class="btn btn-success flex-grow-1 fw-bold">
+            <i class="bi bi-check2-circle me-1"></i>አፅድቅ ✅
+          </button>
+          <button type="submit" name="action" value="reject"
+                  class="btn btn-outline-danger fw-bold">
+            <i class="bi bi-x-circle me-1"></i>መልስ
+          </button>
+        </div>
+      </form>
+    </div>
+    {% endif %}
+    {% endwith %}
     {% endif %}
 
     <!-- QR Code panel -->

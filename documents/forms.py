@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
 
-from .models import Document, Category
+from .models import Document, Category, InnovationProject, Training
 from .utils import generate_reference_number
 
 
@@ -10,8 +10,8 @@ class DocumentForm(forms.ModelForm):
         model = Document
         fields = [
             'title', 'reference_number', 'doc_type', 'category',
-            'sender', 'receiver', 'description', 'file',
-            'status', 'priority', 'date_received', 'due_date', 'assigned_to',
+            'department', 'sender', 'receiver', 'description', 'file',
+            'status', 'priority', 'confidentiality', 'date_received', 'due_date', 'assigned_to',
         ]
         widgets = {
             'title': forms.TextInput(attrs={
@@ -25,6 +25,10 @@ class DocumentForm(forms.ModelForm):
             }),
             'doc_type': forms.Select(attrs={'class': 'form-select'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
+            'department': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'ቢሮ / ክፍል ስም — ለምሳሌ: ፋይናንስ',
+            }),
             'sender': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'ላኪ ስም ወይም ተቋም',
@@ -60,6 +64,7 @@ class DocumentForm(forms.ModelForm):
         self.fields['file'].required = False
         self.fields['category'].empty_label = '-- ምድብ ይምረጡ --'
         self.fields['category'].required = False
+        self.fields['department'].required = False
         self.fields['description'].required = False
         self.fields['date_received'].required = False
         self.fields['due_date'].required = False
@@ -132,6 +137,51 @@ class DocumentSearchForm(forms.Form):
     )
 
 
+class InnovationProjectForm(forms.ModelForm):
+    class Meta:
+        from .models import InnovationProject
+        model  = InnovationProject
+        fields = ['title', 'description', 'lead', 'status', 'start_date', 'end_date']
+        widgets = {
+            'title':       forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'የፕሮጀክቱ ርዕስ'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'lead':        forms.Select(attrs={'class': 'form-select'}),
+            'status':      forms.Select(attrs={'class': 'form-select'}),
+            'start_date':  forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'end_date':    forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['lead'].queryset = User.objects.filter(is_active=True).order_by('username')
+        self.fields['lead'].empty_label = '-- ኃላፊ ይምረጡ --'
+        self.fields['lead'].required = False
+        self.fields['start_date'].required = False
+        self.fields['end_date'].required = False
+
+
+class TrainingForm(forms.ModelForm):
+    class Meta:
+        from .models import Training
+        model  = Training
+        fields = ['title', 'description', 'trainer', 'date', 'duration', 'participants']
+        widgets = {
+            'title':        forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'የሥልጠናው ርዕስ'}),
+            'description':  forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'trainer':      forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'አሠልጣኝ ስም'}),
+            'date':         forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'duration':     forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
+            'participants': forms.SelectMultiple(attrs={'class': 'form-select', 'size': 5}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['participants'].queryset = User.objects.filter(is_active=True).order_by('username')
+        self.fields['participants'].required = False
+        self.fields['description'].required = False
+        self.fields['trainer'].required = False
+
+
 class CategoryForm(forms.ModelForm):
     class Meta:
         model = Category
@@ -151,3 +201,46 @@ class CategoryForm(forms.ModelForm):
                 'placeholder': 'ስለ ምድቡ አጭር መግለጫ...',
             }),
         }
+
+
+class InnovationProjectForm(forms.ModelForm):
+    class Meta:
+        model  = InnovationProject
+        fields = ['title', 'description', 'lead', 'status', 'start_date', 'end_date']
+        widgets = {
+            'title':       forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'የፕሮጀክቱ ርዕስ'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'lead':        forms.Select(attrs={'class': 'form-select'}),
+            'status':      forms.Select(attrs={'class': 'form-select'}),
+            'start_date':  forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'end_date':    forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['lead'].queryset = User.objects.filter(is_active=True).order_by('username')
+        self.fields['lead'].empty_label = '-- ኃላፊ ይምረጡ --'
+        self.fields['lead'].required = False
+        self.fields['start_date'].required = False
+        self.fields['end_date'].required = False
+
+
+class TrainingForm(forms.ModelForm):
+    class Meta:
+        model  = Training
+        fields = ['title', 'description', 'trainer', 'date', 'duration', 'participants']
+        widgets = {
+            'title':        forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'የሥልጠናው ርዕስ'}),
+            'description':  forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'trainer':      forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'አሠልጣኝ ስም'}),
+            'date':         forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'duration':     forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
+            'participants': forms.SelectMultiple(attrs={'class': 'form-select', 'size': 5}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['participants'].queryset = User.objects.filter(is_active=True).order_by('username')
+        self.fields['participants'].required = False
+        self.fields['description'].required = False
+        self.fields['trainer'].required = False

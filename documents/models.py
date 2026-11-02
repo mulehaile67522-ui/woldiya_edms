@@ -192,6 +192,11 @@ class Document(models.Model):
         ('HIGH',   'ከፍተኛ'),
         ('URGENT', 'አስቸኳይ'),
     ]
+    CONFIDENTIALITY_CHOICES = [
+        ('PUBLIC',       '🌐 ይፋዊ — ሁሉም ያያሉ'),
+        ('CONFIDENTIAL', '🔒 ሚስጥራዊ — ቢሮ ኃላፊ + ከንቲባ ጽ/ቤት'),
+        ('SECRET',       '🔴 ምስጢር — ከንቲባ + ምክትል + Admin ብቻ'),
+    ]
 
     title            = models.CharField(max_length=255, verbose_name='የደብዳቤው ርዕስ')
     reference_number = models.CharField(max_length=100, unique=True, verbose_name='የደብዳቤ ቁጥር')
@@ -210,6 +215,8 @@ class Document(models.Model):
                                          default='PENDING', verbose_name='ሁኔታ')
     priority         = models.CharField(max_length=10, choices=PRIORITY_CHOICES,
                                          default='MEDIUM', verbose_name='ቅድሚያ')
+    confidentiality  = models.CharField(max_length=15, choices=CONFIDENTIALITY_CHOICES,
+                                         default='PUBLIC', verbose_name='የሚስጥር ደረጃ')
     date_received    = models.DateField(null=True, blank=True, verbose_name='የደረሰበት ቀን')
     due_date         = models.DateField(null=True, blank=True, verbose_name='የመጨረሻ ቀን')
     created_at       = models.DateTimeField(auto_now_add=True, verbose_name='የተመዘገበበት ቀን')

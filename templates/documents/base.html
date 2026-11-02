@@ -38,13 +38,16 @@
 
     /* ── Sidebar ── */
     #sidebar {
-      width: var(--sidebar-w); min-height:100vh;
+      width: var(--sidebar-w);
+      height: 100vh;
       background: linear-gradient(180deg,var(--brand) 0%,var(--brand-dark) 100%);
       position: fixed; top:0; left:0; z-index:1050;
       display: flex; flex-direction:column;
       transition: width .28s ease, transform .28s ease;
       box-shadow: 3px 0 20px rgba(0,0,0,.18);
       overflow-y: auto; overflow-x: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,.2) transparent;
     }
     .sb-brand {
       padding: 16px 14px 14px;
@@ -84,6 +87,11 @@
     #sidebar .nav-link:hover { background:rgba(255,255,255,.11); color:#fff; }
     #sidebar .nav-link.active { background:var(--brand-gold); color:#fff; font-weight:600; }
     .sb-divider { border-color:rgba(255,255,255,.1); margin:4px 14px; }
+    .sb-collapse-btn { cursor:pointer; }
+    .sb-collapse-btn .sb-chevron { transition: transform .2s; font-size:.7rem; opacity:.6; }
+    .sb-collapse-btn[aria-expanded="true"] .sb-chevron { transform: rotate(180deg); }
+    /* Ensure collapse div hidden by default */
+    #sidebar .collapse:not(.show) { display: none; }
     .sb-user {
       margin-top:auto; padding:12px 16px;
       border-top:1px solid rgba(255,255,255,.1);
@@ -223,13 +231,24 @@
 
     /* ── Responsive ── */
     @media (max-width:768px) {
-      #sidebar { transform:translateX(-100%); }
-      #sidebar.show { transform:translateX(0); }
-      #main { margin-left:0; }
-      .page-content { padding:20px 16px; }
-      #topbar { padding:0 14px; gap:10px; }
-      .stat-card { min-height:120px; padding:22px 20px; }
-      .stat-card .s-val { font-size:2rem; }
+      #sidebar {
+        transform: translateX(-100%);
+        height: 100vh;
+        height: 100dvh; /* dynamic viewport height for mobile browsers */
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        /* make sure bottom items are always reachable */
+        padding-bottom: 80px;
+      }
+      #sidebar.show { transform: translateX(0); }
+      #main { margin-left: 0; }
+      .page-content { padding: 20px 16px; }
+      #topbar { padding: 0 14px; gap: 10px; }
+      .stat-card { min-height: 120px; padding: 22px 20px; }
+      .stat-card .s-val { font-size: 2rem; }
+      /* Prevent content behind topbar on mobile */
+      #topbar { position: sticky; top: 0; z-index: 900; }
     }
 
     /* ── Print ── */
@@ -263,67 +282,127 @@
   </div>
 
   <ul class="nav flex-column mt-1 pb-3">
+
+    <!-- ── Dashboard ── -->
     <li><span class="sb-section">ዋና ምናሌ</span></li>
     <li><a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
       <i class="bi bi-speedometer2"></i> ዳሽቦርድ
     </a></li>
-
-    <li><span class="sb-section">ደብዳቤዎች</span></li>
-    <li><a href="{% url 'document_list' %}" class="nav-link {% if request.resolver_match.url_name == 'document_list' %}active{% endif %}">
-      <i class="bi bi-files"></i> ሁሉም ደብዳቤዎች
-    </a></li>
-    <li><a href="{% url 'inbox' %}" class="nav-link {% if request.resolver_match.url_name == 'inbox' %}active{% endif %}">
-      <i class="bi bi-inbox-fill" style="color:#ffd54f"></i> ገቢ መልዕክቶች
-      {% with inbox_count=request.user.received_forwards.filter.count %}{% endwith %}
-    </a></li>
-    <li><a href="{% url 'document_list' %}?doc_type=INCOMING" class="nav-link">
-      <i class="bi bi-inbox-fill" style="color:#90caf9"></i> ገቢ ደብዳቤ
-    </a></li>
-    <li><a href="{% url 'document_list' %}?doc_type=OUTGOING" class="nav-link">
-      <i class="bi bi-send-fill" style="color:#ce93d8"></i> ወጪ ደብዳቤ
-    </a></li>
-    <li><a href="{% url 'document_list' %}?doc_type=INTERNAL" class="nav-link">
-      <i class="bi bi-journal-text" style="color:#80cbc4"></i> የውስጥ ማስታወሻ
-    </a></li>
-
-    <li><span class="sb-section">ሁኔታ</span></li>
-    <li><a href="{% url 'document_list' %}?status=PENDING" class="nav-link">
-      <i class="bi bi-hourglass-split" style="color:#ffcc80"></i> በጥበቃ ላይ
-    </a></li>
-    <li><a href="{% url 'document_list' %}?status=IN_PROGRESS" class="nav-link">
-      <i class="bi bi-arrow-repeat" style="color:#90caf9"></i> በሂደት ላይ
-    </a></li>
-    <li><a href="{% url 'overdue_documents' %}" class="nav-link">
-      <i class="bi bi-alarm-fill" style="color:#ef9a9a"></i> ጊዜ ያለፋቸው
-      {% if overdue_count %}<span class="badge bg-danger ms-auto" style="font-size:.6rem;">{{ overdue_count }}</span>{% endif %}
-    </a></li>
-
-    <li><hr class="sb-divider"></li>
-    <li><a href="{% url 'document_create' %}" class="nav-link">
-      <i class="bi bi-plus-circle-fill" style="color:#a5d6a7"></i> አዲስ ደብዳቤ
-    </a></li>
-    {% if user_can_create %}
-    <li><a href="{% url 'my_documents' %}" class="nav-link {% if request.resolver_match.url_name == 'my_documents' %}active{% endif %}">
-      <i class="bi bi-person-lines-fill" style="color:#80cbc4"></i> የእኔ ደብዳቤዎች
+    {% if user_role in "MAYOR VICE_MAYOR" %}
+    <li><a href="{% url 'mayor_dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'mayor_dashboard' %}active{% endif %}">
+      <i class="bi bi-graph-up-arrow" style="color:#ffd54f;"></i> Analytics Dashboard
     </a></li>
     {% endif %}
-    <li><a href="{% url 'category_list' %}" class="nav-link {% if 'category' in request.resolver_match.url_name %}active{% endif %}">
-      <i class="bi bi-tags-fill" style="color:#ffab91"></i> ምድቦች
+
+    <li><hr class="sb-divider"></li>
+    <!-- ── Documents (collapsible) ── -->
+    <li>
+      <button class="nav-link sb-collapse-btn d-flex justify-content-between align-items-center w-100 border-0 bg-transparent text-start"
+         data-bs-toggle="collapse" data-bs-target="#collapseDebdabe"
+         aria-expanded="{% if request.resolver_match.url_name == 'document_list' or request.resolver_match.url_name == 'inbox' or request.resolver_match.url_name == 'document_detail' or request.resolver_match.url_name == 'document_create' %}true{% else %}false{% endif %}">
+        <span><i class="bi bi-files" style="color:#90caf9"></i> ደብዳቤዎች</span>
+        <i class="bi bi-chevron-down sb-chevron"></i>
+      </button>
+      <div class="collapse {% if request.resolver_match.url_name == 'document_list' or request.resolver_match.url_name == 'inbox' or request.resolver_match.url_name == 'document_detail' or request.resolver_match.url_name == 'document_create' %}show{% endif %}" id="collapseDebdabe">
+        <ul class="nav flex-column ps-3">
+          <li><a href="{% url 'document_list' %}" class="nav-link py-1 {% if request.resolver_match.url_name == 'document_list' %}active{% endif %}" style="font-size:.82rem;">
+            <i class="bi bi-files" style="color:#90caf9"></i> ሁሉም ደብዳቤዎች
+          </a></li>
+          <li><a href="{% url 'inbox' %}" class="nav-link py-1 {% if request.resolver_match.url_name == 'inbox' %}active{% endif %}" style="font-size:.82rem;">
+            <i class="bi bi-envelope-fill" style="color:#ffd54f"></i> ገቢ መልዕክቶች
+            {% if inbox_unread %}<span class="badge bg-warning text-dark ms-1" style="font-size:.6rem;">{{ inbox_unread }}</span>{% endif %}
+          </a></li>
+          <li><a href="{% url 'document_list' %}?doc_type=INCOMING" class="nav-link py-1" style="font-size:.82rem;">
+            <i class="bi bi-box-arrow-in-down" style="color:#81d4fa"></i> ገቢ ደብዳቤ
+          </a></li>
+          <li><a href="{% url 'document_list' %}?doc_type=OUTGOING" class="nav-link py-1" style="font-size:.82rem;">
+            <i class="bi bi-box-arrow-up" style="color:#ce93d8"></i> ወጪ ደብዳቤ
+          </a></li>
+          <li><a href="{% url 'document_list' %}?doc_type=INTERNAL" class="nav-link py-1" style="font-size:.82rem;">
+            <i class="bi bi-sticky-fill" style="color:#80cbc4"></i> የውስጥ ማስታወሻ
+          </a></li>
+        </ul>
+      </div>
+    </li>
+
+    <!-- ── ሁኔታ (collapsible) ── -->
+    <li>
+      <button class="nav-link sb-collapse-btn d-flex justify-content-between align-items-center w-100 border-0 bg-transparent text-start"
+         data-bs-toggle="collapse" data-bs-target="#collapseHuneta"
+         aria-expanded="{% if request.GET.status or request.resolver_match.url_name == 'overdue_documents' %}true{% else %}false{% endif %}">
+        <span><i class="bi bi-layers-fill" style="color:#ffab91"></i> ሁኔታ</span>
+        <i class="bi bi-chevron-down sb-chevron"></i>
+      </button>
+      <div class="collapse {% if request.GET.status or request.resolver_match.url_name == 'overdue_documents' %}show{% endif %}" id="collapseHuneta">
+        <ul class="nav flex-column ps-3">
+          <li><a href="{% url 'document_list' %}?status=PENDING" class="nav-link py-1" style="font-size:.82rem;">
+            <i class="bi bi-hourglass-split" style="color:#ffcc80"></i> በጥበቃ ላይ
+          </a></li>
+          <li><a href="{% url 'document_list' %}?status=IN_PROGRESS" class="nav-link py-1" style="font-size:.82rem;">
+            <i class="bi bi-arrow-repeat" style="color:#90caf9"></i> በሂደት ላይ
+          </a></li>
+          <li><a href="{% url 'overdue_documents' %}" class="nav-link py-1" style="font-size:.82rem;">
+            <i class="bi bi-alarm-fill" style="color:#ef9a9a"></i> ጊዜ ያለፋቸው
+            {% if overdue_count %}<span class="badge bg-danger ms-1" style="font-size:.6rem;">{{ overdue_count }}</span>{% endif %}
+          </a></li>
+        </ul>
+      </div>
+    </li>
+
+    <!-- ── ምድቦች (collapsible) ── -->
+    {% if sidebar_categories %}
+    <li>
+      <button class="nav-link sb-collapse-btn d-flex justify-content-between align-items-center w-100 border-0 bg-transparent text-start"
+         data-bs-toggle="collapse" data-bs-target="#collapseMdboch"
+         aria-expanded="{% if 'category' in request.resolver_match.url_name %}true{% else %}false{% endif %}">
+        <span><i class="bi bi-tags-fill" style="color:#ffab91"></i> ምድቦች</span>
+        <i class="bi bi-chevron-down sb-chevron"></i>
+      </button>
+      <div class="collapse {% if 'category' in request.resolver_match.url_name %}show{% endif %}" id="collapseMdboch">
+        <ul class="nav flex-column ps-3">
+          {% for cat in sidebar_categories %}
+          <li><a href="{% url 'document_list' %}?category={{ cat.pk }}" class="nav-link py-1" style="font-size:.82rem;">
+            <i class="bi bi-tag" style="color:#ffab91"></i> {{ cat }}
+          </a></li>
+          {% endfor %}
+          <li><a href="{% url 'category_list' %}" class="nav-link py-1" style="font-size:.78rem;color:rgba(255,255,255,.45);">
+            <i class="bi bi-arrow-right"></i> ሁሉም ምድቦች
+          </a></li>
+        </ul>
+      </div>
+    </li>
+    {% endif %}
+
+    <!-- ── Actions ── -->
+    <li><hr class="sb-divider"></li>
+    <li><a href="{% url 'qr_scanner' %}" class="nav-link {% if request.resolver_match.url_name == 'qr_scanner' %}active{% endif %}">
+      <i class="bi bi-qr-code-scan" style="color:#ffd54f"></i> QR Scanner
     </a></li>
 
-    <li><span class="sb-section">ትንተና</span></li>
-    <li><a href="{% url 'audit_trail' %}" class="nav-link {% if request.resolver_match.url_name == 'audit_trail' %}active{% endif %}">
-      <i class="bi bi-journal-check" style="color:#80deea"></i> Audit Trail
-    </a></li>
-    <li><a href="{% url 'reports' %}" class="nav-link {% if request.resolver_match.url_name == 'reports' %}active{% endif %}">
-      <i class="bi bi-bar-chart-fill" style="color:#80cbc4"></i> ሪፖርት
-    </a></li>
+    <!-- ── ትንተና Admin only (collapsible) ── -->
+    {% if user_is_admin %}
+    <li><hr class="sb-divider"></li>
+    <li>
+      <button class="nav-link sb-collapse-btn d-flex justify-content-between align-items-center w-100 border-0 bg-transparent text-start"
+         data-bs-toggle="collapse" data-bs-target="#collapseTntena"
+         aria-expanded="{% if request.resolver_match.url_name == 'audit_trail' or request.resolver_match.url_name == 'reports' %}true{% else %}false{% endif %}">
+        <span><i class="bi bi-graph-up" style="color:#80deea"></i> ትንተና</span>
+        <i class="bi bi-chevron-down sb-chevron"></i>
+      </button>
+      <div class="collapse {% if request.resolver_match.url_name == 'audit_trail' or request.resolver_match.url_name == 'reports' %}show{% endif %}" id="collapseTntena">
+        <ul class="nav flex-column ps-3">
+          <li><a href="{% url 'audit_trail' %}" class="nav-link py-1 {% if request.resolver_match.url_name == 'audit_trail' %}active{% endif %}" style="font-size:.82rem;">
+            <i class="bi bi-journal-check" style="color:#80deea"></i> Audit Trail
+          </a></li>
+          <li><a href="{% url 'reports' %}" class="nav-link py-1 {% if request.resolver_match.url_name == 'reports' %}active{% endif %}" style="font-size:.82rem;">
+            <i class="bi bi-bar-chart-fill" style="color:#80cbc4"></i> ሪፖርት
+          </a></li>
+        </ul>
+      </div>
+    </li>
+    {% endif %}
 
-    <li><span class="sb-section">ፈጠራ እና አቅም</span></li>
-    <li><a href="{% url 'capacity_building' %}" class="nav-link {% if request.resolver_match.url_name == 'capacity_building' %}active{% endif %}">
-      <i class="bi bi-lightbulb-fill" style="color:#ffd54f"></i> አቅም ግንባታ
-    </a></li>
-
+    <!-- ── Admin ── -->
     {% if request.user.is_staff %}
     <li><hr class="sb-divider"></li>
     <li><a href="{% url 'user_management' %}" class="nav-link {% if request.resolver_match.url_name == 'user_management' %}active{% endif %}">
@@ -446,6 +525,40 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+  // Sidebar collapsible sections
+  document.querySelectorAll('.sb-collapse-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const target = document.querySelector(this.getAttribute('data-bs-target'));
+      if (!target) return;
+      const isOpen = target.classList.contains('show');
+      target.classList.toggle('show', !isOpen);
+      this.setAttribute('aria-expanded', !isOpen);
+      const chevron = this.querySelector('.sb-chevron');
+      if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+    });
+  });
+
+  // Auto-logout warning — 2 min before 30 min session expires
+  let idleTimer;
+  let warnTimer;
+  function resetIdle() {
+    clearTimeout(idleTimer);
+    clearTimeout(warnTimer);
+    warnTimer = setTimeout(() => {
+      if (confirm('28 ደቂቃ ካለፈ session ያልቃል። ቀጥል ትፈልጋለህ?')) {
+        fetch(window.location.href); // ping server to reset session
+      }
+    }, 28 * 60 * 1000);
+    idleTimer = setTimeout(() => {
+      window.location.href = '/logout/';
+    }, 30 * 60 * 1000);
+  }
+  ['mousemove','keydown','click','scroll','touchstart'].forEach(e =>
+    document.addEventListener(e, resetIdle, {passive: true})
+  );
+  resetIdle();
+
   // Register Service Worker for PWA
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -531,6 +644,8 @@
     });
   });
 </script>
+
 {% block extra_js %}{% endblock %}
 </body>
 </html>
+

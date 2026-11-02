@@ -149,11 +149,17 @@ def dashboard(request):
         elif role == 'DEPT_HEAD':
             if user_dept:
                 docs = docs.filter(Q(department=user_dept) | Q(pk__in=fwd_ids) | Q(pk__in=assigned_ids))
+            # Dept heads cannot see SECRET docs from other departments
+            docs = docs.exclude(Q(confidentiality='SECRET') & ~Q(department=user_dept))
         elif role in ('REGISTRAR', 'SUBCITY'):
             if user_dept:
                 docs = docs.filter(Q(department=user_dept) | Q(pk__in=fwd_ids) | Q(pk__in=assigned_ids))
+            # Registrars cannot see SECRET or CONFIDENTIAL docs from other departments
+            docs = docs.exclude(Q(confidentiality__in=['SECRET', 'CONFIDENTIAL']) & ~Q(department=user_dept))
         elif role == 'VIEWER':
             docs = docs.filter(Q(pk__in=fwd_ids) | Q(pk__in=assigned_ids))
+            # Viewers can only see PUBLIC docs
+            docs = docs.filter(confidentiality='PUBLIC')
         else:
             docs = docs.filter(created_by=request.user)
 
@@ -300,33 +306,53 @@ def _export_csv(queryset):
 def document_detail(request, pk):
     doc        = get_object_or_404(Document, pk=pk)
 
-    # ── Department-based access control ──────────────────────────────
-    is_admin = request.user.is_superuser or request.user.is_staff
-    if not is_admin:
-        try:
-            role      = request.user.profile.role
-            user_dept = request.user.profile.department.strip()
-        except Exception:
-            role      = 'VIEWER'
-            user_dept = ''
+    # ── Full Access Control: Department + Confidentiality + Forward ───
+    is_superuser = request.user.is_superuser or request.user.is_staff
+    try:
+        role      = request.user.profile.role if not is_superuser else 'ADMIN'
+        user_dept = request.user.profile.department.strip() if not is_superuser else ''
+    except Exception:
+        role      = 'VIEWER'
+        user_dept = ''
 
-        # MAYOR and VICE_MAYOR see ALL documents
-        sees_all = role in ('MAYOR', 'VICE_MAYOR', 'ADMIN')
+    was_forwarded = False
+    try:
+        from .models import DocumentForward
+        was_forwarded = DocumentForward.objects.filter(
+            document=doc, to_user=request.user
+        ).exists()
+    except Exception:
+        pass
 
-        # Check if document was forwarded to this user
-        was_forwarded = False
-        try:
-            from .models import DocumentForward
-            was_forwarded = DocumentForward.objects.filter(
-                document=doc, to_user=request.user
-            ).exists()
-        except Exception:
-            pass
+    is_assigned = doc.assigned_to == request.user
 
-        if not sees_all and not was_forwarded:
+    # 1. Department check
+    if role not in ('ADMIN',) and not was_forwarded and not is_assigned:
+        if role in ('MAYOR', 'VICE_MAYOR'):
+            # Mayor only sees docs addressed to Mayor office
+            if doc.department != 'ከንቲባ ጽፈት ቤት' and 'ከንቲባ' not in doc.receiver:
+                messages.error(request, 'ይህን ደብዳቤ የማየት ፈቃድ የለዎትም።')
+                return redirect('dashboard')
+        elif role in ('DEPT_HEAD', 'REGISTRAR', 'SUBCITY'):
             if user_dept and doc.department and doc.department != user_dept:
                 messages.error(request, 'ይህን ደብዳቤ የማየት ፈቃድ የለዎትም።')
                 return redirect('document_list')
+        elif role == 'VIEWER':
+            messages.error(request, 'ይህን ደብዳቤ የማየት ፈቃድ የለዎትም።')
+            return redirect('document_list')
+
+    # 2. Confidentiality check
+    conf = getattr(doc, 'confidentiality', 'PUBLIC')
+    if conf == 'SECRET' and role not in ('ADMIN', 'MAYOR', 'VICE_MAYOR'):
+        messages.error(request, '🔴 ይህ ደብዳቤ "ምስጢር" ነው — ለማየት ፈቃድ የለዎትም።')
+        return redirect('document_list')
+    if conf == 'CONFIDENTIAL' and role not in ('ADMIN', 'MAYOR', 'VICE_MAYOR', 'DEPT_HEAD'):
+        messages.error(request, '🔒 ይህ ደብዳቤ "ሚስጥራዊ" ነው — ለቢሮ ኃላፊ እና ከፍተኛ አመራር ብቻ ነው።')
+        return redirect('document_list')
+
+    # 3. Audit log — record who viewed this document
+    log_activity(doc, request.user, 'ደብዳቤ ታይቷል',
+                 f'{request.user.get_full_name() or request.user.username} ደብዳቤ ተከፍቷል።')
 
     activities = doc.activities.select_related('user').order_by('-timestamp')[:20]
     today      = timezone.localdate()
@@ -1645,4 +1671,164 @@ def delete_attachment(request, pk, att_id):
         att.file.delete(save=False)
         att.delete()
         messages.warning(request, f'Attachment "{name}" deleted.')
+    return redirect('document_detail', pk=pk)
+
+
+# ──────────────────────────── MAYOR ANALYTICS DASHBOARD ─────────────
+
+@login_required
+def mayor_dashboard(request):
+    """
+    Executive-only view: Statistics and analytics only.
+    No document list — just numbers, charts and overdue alerts.
+    Only accessible to MAYOR and VICE_MAYOR roles.
+    """
+    try:
+        role = request.user.profile.role
+    except Exception:
+        role = 'VIEWER'
+
+    if role not in ('MAYOR', 'VICE_MAYOR', 'ADMIN'):
+        messages.error(request, 'ይህ ገጽ ለከንቲባ እና ምክትል ከንቲባ ብቻ ነው።')
+        return redirect('dashboard')
+
+    today      = timezone.localdate()
+    week_start = today - datetime.timedelta(days=today.weekday())
+    all_docs   = Document.objects.all()
+
+    # ── Overall stats ──
+    total       = all_docs.count()
+    pending     = all_docs.filter(status='PENDING').count()
+    in_progress = all_docs.filter(status='IN_PROGRESS').count()
+    completed   = all_docs.filter(status='COMPLETED').count()
+    overdue     = all_docs.filter(due_date__lt=today).exclude(
+                    status__in=['COMPLETED', 'ARCHIVED']).count()
+    urgent      = all_docs.filter(priority='URGENT').exclude(
+                    status__in=['COMPLETED', 'ARCHIVED']).count()
+    today_docs  = all_docs.filter(created_at__date=today).count()
+    week_docs   = all_docs.filter(created_at__date__gte=week_start).count()
+    completion_pct = int((completed / total * 100) if total else 0)
+
+    # ── Per-department stats ──
+    from django.db.models import Count as DCount
+    dept_stats = all_docs.values('department').annotate(
+        total=DCount('id'),
+        pending=DCount('id', filter=Q(status='PENDING')),
+        completed=DCount('id', filter=Q(status='COMPLETED')),
+        overdue=DCount('id', filter=Q(due_date__lt=today) & ~Q(status__in=['COMPLETED','ARCHIVED'])),
+    ).order_by('-total')[:15]
+
+    # ── Monthly trend (last 6 months) ──
+    chart_labels, chart_data = [], []
+    for i in range(5, -1, -1):
+        d = today - datetime.timedelta(days=30 * i)
+        chart_labels.append(d.strftime('%b %Y'))
+        chart_data.append(all_docs.filter(
+            created_at__year=d.year, created_at__month=d.month).count())
+
+    # ── By type ──
+    incoming = all_docs.filter(doc_type='INCOMING').count()
+    outgoing = all_docs.filter(doc_type='OUTGOING').count()
+    internal = all_docs.filter(doc_type='INTERNAL').count()
+
+    # ── Overdue by department ──
+    overdue_by_dept = all_docs.filter(
+        due_date__lt=today
+    ).exclude(status__in=['COMPLETED','ARCHIVED']).values('department').annotate(
+        cnt=DCount('id')
+    ).order_by('-cnt')[:10]
+
+    # ── Docs addressed to Mayor office ──
+    mayor_docs = all_docs.filter(
+        Q(department='ከንቲባ ጽፈት ቤት') | Q(receiver__icontains='ከንቲባ')
+    ).order_by('-created_at')[:10]
+
+    return render(request, 'documents/mayor_dashboard.html', {
+        'total': total, 'pending': pending, 'in_progress': in_progress,
+        'completed': completed, 'overdue': overdue, 'urgent': urgent,
+        'today_docs': today_docs, 'week_docs': week_docs,
+        'completion_pct': completion_pct,
+        'dept_stats': dept_stats,
+        'chart_labels': json.dumps(chart_labels),
+        'chart_data':   json.dumps(chart_data),
+        'incoming': incoming, 'outgoing': outgoing, 'internal': internal,
+        'overdue_by_dept': overdue_by_dept,
+        'mayor_docs': mayor_docs,
+        'today': today,
+        'role': role,
+    })
+
+
+# ──────────────────────────── APPROVAL WORKFLOW ──────────────────────
+
+@login_required
+@require_POST
+def approve_document(request, pk):
+    """
+    Approval workflow:
+    REGISTRAR → submits → DEPT_HEAD approves → VICE_MAYOR reviews → MAYOR signs
+    """
+    doc = get_object_or_404(Document, pk=pk)
+    try:
+        role = request.user.profile.role
+    except Exception:
+        role = 'VIEWER'
+
+    action     = request.POST.get('action')  # 'approve' or 'reject'
+    note       = request.POST.get('note', '').strip()
+    old_status = doc.status
+
+    # Permission matrix
+    allowed = {
+        'DEPT_HEAD':  ['PENDING', 'DRAFT'],         # Can approve dept docs
+        'VICE_MAYOR': ['PENDING', 'IN_PROGRESS'],    # Can review
+        'MAYOR':      ['IN_PROGRESS', 'UNDER_REVIEW'], # Can sign/approve final
+        'ADMIN':      Document.STATUS_CHOICES,        # Can do anything
+    }
+
+    if role not in allowed and not (request.user.is_staff or request.user.is_superuser):
+        messages.error(request, 'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም።')
+        return redirect('document_detail', pk=pk)
+
+    if action == 'approve':
+        # Move to next status in workflow
+        if role == 'DEPT_HEAD':
+            doc.status = 'IN_PROGRESS'
+            new_label  = 'ቢሮ ኃላፊ አፅድቋል → በሂደት ላይ'
+        elif role == 'VICE_MAYOR':
+            doc.status = 'UNDER_REVIEW'
+            new_label  = 'ምክትል ከንቲባ ገምግሟል → በዳኝነት ላይ'
+        elif role in ('MAYOR', 'ADMIN'):
+            doc.status = 'APPROVED'
+            new_label  = 'ከንቲባ/አስተዳዳሪ ፈርሟል → ጸድቋል ✅'
+        else:
+            messages.error(request, 'ይህን ደብዳቤ ለማፅደቅ ፈቃድ የለዎትም።')
+            return redirect('document_detail', pk=pk)
+
+        doc.save(update_fields=['status', 'updated_at'])
+        log_activity(doc, request.user, 'ደብዳቤ ጸደቀ',
+                     f'{new_label}። {f"ማስታወሻ: {note}" if note else ""}')
+
+        # Notify document creator
+        if doc.created_by and doc.created_by != request.user:
+            Notification.objects.create(
+                user=doc.created_by,
+                message=f'ደብዳቤ "{doc.reference_number}" — {new_label}',
+                link=f'/documents/{doc.pk}/',
+            )
+        messages.success(request, f'✅ {new_label}')
+
+    elif action == 'reject':
+        doc.status = 'PENDING'
+        doc.save(update_fields=['status', 'updated_at'])
+        log_activity(doc, request.user, 'ደብዳቤ ተመለሰ',
+                     f'ምክንያት: {note or "—"}')
+        if doc.created_by:
+            Notification.objects.create(
+                user=doc.created_by,
+                message=f'ደብዳቤ "{doc.reference_number}" ተመልሷል። ምክንያት: {note or "—"}',
+                link=f'/documents/{doc.pk}/',
+            )
+        messages.warning(request, f'ደብዳቤ ወደ "በመጠባበቅ" ተመልሷል። ምክንያት: {note or "—"}')
+
     return redirect('document_detail', pk=pk)
