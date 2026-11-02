@@ -27,15 +27,14 @@ def admin_required(view_func):
 
 
 def registrar_required(view_func):
-    """Only ADMIN and REGISTRAR can create documents."""
+    """Only ADMIN, MAYOR, VICE_MAYOR, DEPT_HEAD, REGISTRAR and SUBCITY can create documents."""
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect('login')
-        role = _get_role(request.user)
-        if role in ('ADMIN', 'REGISTRAR'):
+        if _get_role(request.user) in ('ADMIN', 'MAYOR', 'VICE_MAYOR', 'DEPT_HEAD', 'REGISTRAR', 'SUBCITY'):
             return view_func(request, *args, **kwargs)
-        messages.error(request, 'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም። ለአስተዳዳሪ ያሳውቁ።')
+        messages.error(request, 'ፈቃድ የለዎትም። ለአስተዳዳሪ ያሳውቁ።')
         return redirect('dashboard')
     return wrapper
 
