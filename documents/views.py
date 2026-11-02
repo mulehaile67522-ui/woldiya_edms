@@ -1791,16 +1791,42 @@ def approve_document(request, pk):
         return redirect('document_detail', pk=pk)
 
     if action == 'approve':
-        # Move to next status in workflow
+        # ── Enforce strict approval chain ─────────────────────────────
+        # DEPT_HEAD can only approve PENDING/DRAFT docs from their dept
         if role == 'DEPT_HEAD':
+            user_dept = ''
+            try: user_dept = request.user.profile.department.strip()
+            except: pass
+            if doc.department and user_dept and doc.department != user_dept:
+                messages.error(request, 'የሌላ ቢሮ ደብዳቤ ማፅደቅ አይችሉም።')
+                return redirect('document_detail', pk=pk)
+            if doc.status not in ('PENDING', 'DRAFT'):
+                messages.error(request, 'ይህ ደብዳቤ አሁን ሊፀደቅ አይችልም።')
+                return redirect('document_detail', pk=pk)
             doc.status = 'IN_PROGRESS'
-            new_label  = 'ቢሮ ኃላፊ አፅድቋል → በሂደት ላይ'
+            new_label  = '✅ ቢሮ ኃላፊ አፅድቋል → በሂደት ላይ'
+
+        # VICE_MAYOR can only review IN_PROGRESS docs
         elif role == 'VICE_MAYOR':
+            if doc.status != 'IN_PROGRESS':
+                messages.error(request, 'ደብዳቤው "ቢሮ ኃላፊ" ሳያፀድቀው ወደ ምክትል ከንቲባ ሊሄድ አይችልም።')
+                return redirect('document_detail', pk=pk)
             doc.status = 'UNDER_REVIEW'
-            new_label  = 'ምክትል ከንቲባ ገምግሟል → በዳኝነት ላይ'
-        elif role in ('MAYOR', 'ADMIN'):
+            new_label  = '✅ ምክትል ከንቲባ ገምግሟል → በዳኝነት ላይ'
+
+        # MAYOR can only sign UNDER_REVIEW docs
+        elif role == 'MAYOR':
+            if doc.status != 'UNDER_REVIEW':
+                messages.error(request, 'ደብዳቤው "ምክትል ከንቲባ" ሳያጸድቀው ወደ ከንቲባ ሊሄድ አይችልም።')
+                return redirect('document_detail', pk=pk)
             doc.status = 'APPROVED'
-            new_label  = 'ከንቲባ/አስተዳዳሪ ፈርሟል → ጸድቋል ✅'
+            new_label  = '✅ ከንቲባ ፈርሟል → ጸድቋል'
+
+        # ADMIN can change any status
+        elif role == 'ADMIN' or request.user.is_superuser:
+            doc.status = 'APPROVED'
+            new_label  = '✅ አስተዳዳሪ አፅድቋል → ጸድቋል'
+
         else:
             messages.error(request, 'ይህን ደብዳቤ ለማፅደቅ ፈቃድ የለዎትም።')
             return redirect('document_detail', pk=pk)

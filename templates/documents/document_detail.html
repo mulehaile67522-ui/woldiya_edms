@@ -210,11 +210,68 @@
   <!-- ── Right: Status + QR + Activity ── -->
   <div class="col-lg-4">
 
-    <!-- Quick status change — ADMIN only -->
-    {% if user_is_admin %}
+    <!-- Approval Workflow -->
+    {% if user_role == 'DEPT_HEAD' and doc.status in "PENDING DRAFT" %}
+    <div class="page-card p-4 mb-4 no-print" style="border-left:4px solid #2e7d32;">
+      <h6 class="fw-bold mb-2" style="color:#2e7d32;">
+        <i class="bi bi-patch-check-fill me-2"></i>ቢሮ ኃላፊ — ማፅደቂያ
+      </h6>
+      <div class="text-muted small mb-3">ደብዳቤው ምዝገባ ተጠናቋል → ቢሮ ኃላፊ ያፀድቁ</div>
+      <form method="post" action="{% url 'approve_document' doc.pk %}">
+        {% csrf_token %}
+        <textarea name="note" class="form-control mb-2" rows="2" placeholder="ማስታወሻ..."></textarea>
+        <div class="d-flex gap-2">
+          <button type="submit" name="action" value="approve" class="btn btn-success flex-grow-1 fw-bold">
+            <i class="bi bi-check2-circle me-1"></i>አፅድቅ ✅
+          </button>
+          <button type="submit" name="action" value="reject" class="btn btn-outline-danger">
+            <i class="bi bi-x-circle me-1"></i>መልስ
+          </button>
+        </div>
+      </form>
+    </div>
+    {% elif user_role == 'VICE_MAYOR' and doc.status == 'IN_PROGRESS' %}
+    <div class="page-card p-4 mb-4 no-print" style="border-left:4px solid #1565c0;">
+      <h6 class="fw-bold mb-2" style="color:#1565c0;">
+        <i class="bi bi-patch-check-fill me-2"></i>ምክትል ከንቲባ — ክለሳ
+      </h6>
+      <div class="text-muted small mb-3">ቢሮ ኃላፊ አፅድቋል → ምክትል ከንቲባ ይክልሱ</div>
+      <form method="post" action="{% url 'approve_document' doc.pk %}">
+        {% csrf_token %}
+        <textarea name="note" class="form-control mb-2" rows="2" placeholder="ማስታወሻ..."></textarea>
+        <div class="d-flex gap-2">
+          <button type="submit" name="action" value="approve" class="btn btn-primary flex-grow-1 fw-bold">
+            <i class="bi bi-check2-circle me-1"></i>ገምግሜ አፀደቅሁ ✅
+          </button>
+          <button type="submit" name="action" value="reject" class="btn btn-outline-danger">
+            <i class="bi bi-x-circle me-1"></i>መልስ
+          </button>
+        </div>
+      </form>
+    </div>
+    {% elif user_role == 'MAYOR' and doc.status == 'UNDER_REVIEW' %}
+    <div class="page-card p-4 mb-4 no-print" style="border-left:4px solid #c8960c;">
+      <h6 class="fw-bold mb-2" style="color:#c8960c;">
+        <i class="bi bi-award-fill me-2"></i>ከንቲባ — የመጨረሻ ፊርማ
+      </h6>
+      <div class="text-muted small mb-3">ምክትል ከንቲባ ገምግሟል → ከንቲባ ይፍረሙ</div>
+      <form method="post" action="{% url 'approve_document' doc.pk %}">
+        {% csrf_token %}
+        <textarea name="note" class="form-control mb-2" rows="2" placeholder="ማስታወሻ..."></textarea>
+        <div class="d-flex gap-2">
+          <button type="submit" name="action" value="approve" class="btn btn-warning text-dark flex-grow-1 fw-bold">
+            <i class="bi bi-pen-fill me-1"></i>ፈርሜ አፀደቅሁ ✅
+          </button>
+          <button type="submit" name="action" value="reject" class="btn btn-outline-danger">
+            <i class="bi bi-x-circle me-1"></i>መልስ
+          </button>
+        </div>
+      </form>
+    </div>
+    {% elif user_is_admin and doc.status not in "COMPLETED ARCHIVED APPROVED" %}
     <div class="page-card p-4 mb-4 no-print">
       <h6 class="fw-bold mb-3" style="color:var(--brand);">
-        <i class="bi bi-arrow-repeat me-2"></i>ሁኔታ ቀይር
+        <i class="bi bi-arrow-repeat me-2"></i>ሁኔታ ቀይር (Admin)
       </h6>
       <form method="post" action="{% url 'update_status' doc.pk %}" id="statusForm">
         {% csrf_token %}
@@ -228,37 +285,6 @@
         </button>
       </form>
     </div>
-    {% endif %}
-
-    <!-- Approval Workflow -->
-    {% if user_role in "DEPT_HEAD VICE_MAYOR MAYOR ADMIN" %}
-    {% with can_approve=True %}
-    {% if doc.status in "PENDING DRAFT IN_PROGRESS UNDER_REVIEW" %}
-    <div class="page-card p-4 mb-4 no-print">
-      <h6 class="fw-bold mb-3" style="color:var(--brand);">
-        <i class="bi bi-patch-check-fill me-2"></i>የደብዳቤ ማፅደቂያ
-      </h6>
-      <div class="mb-2 small text-muted">
-        ሁኔታ: <span class="eb eb-{{ doc.status }}">{{ doc.get_status_display }}</span>
-      </div>
-      <form method="post" action="{% url 'approve_document' doc.pk %}">
-        {% csrf_token %}
-        <textarea name="note" class="form-control mb-2" rows="2"
-                  placeholder="ማስታወሻ (ምክንያት)..." style="font-size:.85rem;"></textarea>
-        <div class="d-flex gap-2">
-          <button type="submit" name="action" value="approve"
-                  class="btn btn-success flex-grow-1 fw-bold">
-            <i class="bi bi-check2-circle me-1"></i>አፅድቅ ✅
-          </button>
-          <button type="submit" name="action" value="reject"
-                  class="btn btn-outline-danger fw-bold">
-            <i class="bi bi-x-circle me-1"></i>መልስ
-          </button>
-        </div>
-      </form>
-    </div>
-    {% endif %}
-    {% endwith %}
     {% endif %}
 
     <!-- QR Code panel -->
