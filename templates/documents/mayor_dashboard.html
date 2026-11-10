@@ -1,184 +1,231 @@
 {% extends "documents/base.html" %}
-{% block title %}የአመራር ዳሽቦርድ — ወልድያ EDMS{% endblock %}
-{% block page_title %}{% if role == 'MAYOR' %}ከንቲባ{% else %}ምክትል ከንቲባ{% endif %} — Analytics Dashboard{% endblock %}
-{% block page_subtitle %}የደብዳቤ እንቅስቃሴ ማጠቃለያ | {{ today }}{% endblock %}
+{% block title %}Analytics Dashboard — ወልድያ EDMS{% endblock %}
+{% block page_title %}Analytics Dashboard{% endblock %}
+{% block page_subtitle %}{{ request.user.get_full_name|default:request.user.username }} | {{ today }}{% endblock %}
 
 {% block extra_css %}
 <style>
-  .exec-card { border-radius:14px; padding:24px; color:#fff; position:relative; overflow:hidden; }
-  .exec-card .val { font-size:2.5rem; font-weight:900; line-height:1; }
-  .exec-card .lbl { font-size:.9rem; opacity:.85; margin-top:6px; }
-  .exec-card .bg-icon { position:absolute; right:12px; bottom:8px; font-size:5rem; opacity:.1; }
+  /* KPI Cards */
+  .kpi { border-radius:14px; padding:20px 18px; color:#fff; position:relative; overflow:hidden; }
+  .kpi .num { font-size:2.2rem; font-weight:900; line-height:1; }
+  .kpi .lbl { font-size:.82rem; opacity:.88; margin-top:4px; }
+  .kpi .ico { position:absolute; right:10px; bottom:6px; font-size:4rem; opacity:.10; }
+
+  /* Dept table */
   .dept-row:hover td { background:#f8faff; }
-  .alert-exec { border-left:5px solid #dc2626; background:#fff5f5; border-radius:0 10px 10px 0; padding:14px 18px; margin-bottom:10px; }
+  .pct-bar { height:8px; border-radius:4px; background:#e2e8f0; overflow:hidden; }
+  .pct-fill { height:100%; border-radius:4px; background:var(--brand); transition:width .4s; }
+
+  /* Overdue alert cards */
+  .ov-item { border-left:4px solid #dc2626; border-radius:0 10px 10px 0;
+             background:#fff5f5; padding:10px 14px; margin-bottom:8px; }
+  .ov-item.warn { border-left-color:#d97706; background:#fffbeb; }
+  .ov-item.ok { border-left-color:#16a34a; background:#f0fdf4; }
+
+  /* Section header */
+  .sec-title { font-size:.78rem; font-weight:700; letter-spacing:.8px;
+               text-transform:uppercase; color:#94a3b8; margin-bottom:12px; }
 </style>
 {% endblock %}
 
 {% block content %}
 
-<!-- Overdue alert banner -->
+<!-- ── Overdue alert ── -->
 {% if overdue > 0 %}
-<div class="alert alert-danger d-flex gap-3 align-items-center mb-4">
-  <i class="bi bi-alarm-fill fs-3 flex-shrink-0"></i>
+<div class="alert alert-danger d-flex gap-3 align-items-center mb-4 no-print">
+  <i class="bi bi-alarm-fill fs-4 flex-shrink-0"></i>
   <div>
-    <strong>⚠️ {{ overdue }} ደብዳቤ ጊዜው አልፏቸዋል!</strong>
-    ወዲያውኑ ክትትል ያስፈልጋቸዋል።
+    <strong>{{ overdue }} ደብዳቤ ጊዜ አልፏቸዋል!</strong> — ወዲያውኑ ክትትል ያስፈልጋቸዋል።
   </div>
-  <a href="{% url 'overdue_documents' %}" class="btn btn-danger btn-sm ms-auto">ይመልከቱ</a>
 </div>
 {% endif %}
 
-<!-- Executive stat cards -->
-<div class="row g-4 mb-4">
+<!-- ── KPI Bar ── -->
+<div class="row g-3 mb-4">
   <div class="col-6 col-md-3">
-    <div class="exec-card" style="background:linear-gradient(135deg,#1b4f72,#2980b9);">
-      <div class="val">{{ total }}</div>
+    <div class="kpi" style="background:linear-gradient(135deg,#1b4f72,#2980b9);">
+      <div class="num">{{ total }}</div>
       <div class="lbl"><i class="bi bi-files me-1"></i>ጠቅላላ ደብዳቤ</div>
-      <div class="bg-icon"><i class="bi bi-files"></i></div>
+      <div class="ico"><i class="bi bi-files"></i></div>
     </div>
   </div>
   <div class="col-6 col-md-3">
-    <div class="exec-card" style="background:linear-gradient(135deg,#e65100,#ff7043);">
-      <div class="val">{{ pending }}</div>
+    <div class="kpi" style="background:linear-gradient(135deg,#b45309,#f59e0b);">
+      <div class="num">{{ pending }}</div>
       <div class="lbl"><i class="bi bi-hourglass me-1"></i>በጥበቃ ላይ</div>
-      <div class="bg-icon"><i class="bi bi-hourglass"></i></div>
+      <div class="ico"><i class="bi bi-hourglass"></i></div>
     </div>
   </div>
   <div class="col-6 col-md-3">
-    <div class="exec-card" style="background:linear-gradient(135deg,#1b5e20,#4caf50);">
-      <div class="val">{{ completed }}</div>
+    <div class="kpi" style="background:linear-gradient(135deg,#15803d,#4ade80);">
+      <div class="num">{{ completed }}</div>
       <div class="lbl"><i class="bi bi-check-circle me-1"></i>ተጠናቋል</div>
-      <div class="bg-icon"><i class="bi bi-check-circle"></i></div>
+      <div class="ico"><i class="bi bi-check-circle"></i></div>
     </div>
   </div>
   <div class="col-6 col-md-3">
-    <div class="exec-card" style="background:linear-gradient(135deg,#b71c1c,#ef5350);">
-      <div class="val">{{ overdue }}</div>
+    <div class="kpi" style="background:linear-gradient(135deg,#b91c1c,#f87171);">
+      <div class="num">{{ overdue }}</div>
       <div class="lbl"><i class="bi bi-alarm me-1"></i>ጊዜ ያለፋቸው</div>
-      <div class="bg-icon"><i class="bi bi-alarm"></i></div>
+      <div class="ico"><i class="bi bi-alarm"></i></div>
     </div>
   </div>
 </div>
 
+<!-- ── Completion progress + quick stats ── -->
 <div class="row g-4 mb-4">
-  <!-- Monthly chart -->
-  <div class="col-lg-7">
-    <div class="page-card p-4">
-      <h6 class="fw-bold mb-3" style="color:var(--brand);">
-        <i class="bi bi-graph-up me-2"></i>ወርሃዊ የደብዳቤ እንቅስቃሴ
-      </h6>
-      <canvas id="monthlyChart" height="100"></canvas>
-      <div class="row g-3 mt-2 text-center">
-        <div class="col-4">
-          <div class="fw-bold text-primary" style="font-size:1.3rem;">{{ incoming }}</div>
-          <div class="text-muted small">ገቢ ደብዳቤ</div>
+  <div class="col-md-4">
+    <div class="page-card p-4 h-100">
+      <div class="sec-title">የስራ አፈጻጸም</div>
+      <!-- Big progress ring -->
+      <div class="text-center mb-3">
+        <svg width="130" height="130" viewBox="0 0 130 130">
+          <circle cx="65" cy="65" r="55" fill="none" stroke="#e2e8f0" stroke-width="12"/>
+          <circle cx="65" cy="65" r="55" fill="none" stroke="#1b4f72" stroke-width="12"
+                  stroke-dasharray="345.4"
+                  stroke-dashoffset="{{ completion_pct|default:0 }}"
+                  id="progressRing" stroke-linecap="round"
+                  transform="rotate(-90 65 65)"/>
+          <text x="65" y="70" text-anchor="middle" font-size="22" font-weight="900" fill="#1b4f72">{{ completion_pct }}%</text>
+        </svg>
+      </div>
+      <div class="text-center text-muted small mb-3">{{ completed }} / {{ total }} ተጠናቋል</div>
+      <!-- Mini stats -->
+      <div class="d-flex flex-column gap-2">
+        <div class="d-flex justify-content-between align-items-center px-2 py-1 rounded" style="background:#f8faff;">
+          <span class="small text-muted"><i class="bi bi-calendar-day me-1"></i>ዛሬ</span>
+          <strong class="text-primary">{{ today_docs }}</strong>
         </div>
-        <div class="col-4">
-          <div class="fw-bold text-purple" style="font-size:1.3rem;color:#6a1b9a;">{{ outgoing }}</div>
-          <div class="text-muted small">ወጪ ደብዳቤ</div>
+        <div class="d-flex justify-content-between align-items-center px-2 py-1 rounded" style="background:#f8faff;">
+          <span class="small text-muted"><i class="bi bi-calendar-week me-1"></i>ሳምንት</span>
+          <strong class="text-success">{{ week_docs }}</strong>
         </div>
-        <div class="col-4">
-          <div class="fw-bold text-success" style="font-size:1.3rem;">{{ internal }}</div>
-          <div class="text-muted small">የውስጥ ማስታወሻ</div>
+        <div class="d-flex justify-content-between align-items-center px-2 py-1 rounded" style="background:#fff5f5;">
+          <span class="small text-muted"><i class="bi bi-lightning-fill me-1"></i>አስቸኳይ</span>
+          <strong class="text-danger">{{ urgent }}</strong>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Overdue by department -->
-  <div class="col-lg-5">
+  <!-- Monthly chart -->
+  <div class="col-md-8">
     <div class="page-card p-4 h-100">
-      <h6 class="fw-bold mb-3" style="color:#dc2626;">
-        <i class="bi bi-alarm-fill me-2"></i>ጊዜ ያለፋቸው — በቢሮ
-      </h6>
-      {% if overdue_by_dept %}
-        {% for dept in overdue_by_dept %}
-        <div class="alert-exec d-flex justify-content-between align-items-center">
-          <span style="font-size:.88rem;">{{ dept.department|default:"ያልተመደበ" }}</span>
-          <span class="badge bg-danger">{{ dept.cnt }}</span>
+      <div class="sec-title">ወርሃዊ የደብዳቤ እንቅስቃሴ</div>
+      <canvas id="monthlyChart" height="120"></canvas>
+      <!-- Doc type mini stats -->
+      <div class="row g-2 mt-3">
+        <div class="col-4 text-center">
+          <div class="fw-bold" style="font-size:1.3rem;color:#1565c0;">{{ incoming }}</div>
+          <div class="text-muted" style="font-size:.75rem;">ገቢ ደብዳቤ</div>
         </div>
-        {% endfor %}
-      {% else %}
-        <div class="text-center text-success py-4">
-          <i class="bi bi-check-circle-fill fs-2 d-block mb-2"></i>
-          ጊዜ ያለፋቸው ደብዳቤዎች የሉም ✅
+        <div class="col-4 text-center">
+          <div class="fw-bold" style="font-size:1.3rem;color:#6a1b9a;">{{ outgoing }}</div>
+          <div class="text-muted" style="font-size:.75rem;">ወጪ ደብዳቤ</div>
         </div>
-      {% endif %}
+        <div class="col-4 text-center">
+          <div class="fw-bold" style="font-size:1.3rem;color:#00695c;">{{ internal }}</div>
+          <div class="text-muted" style="font-size:.75rem;">ማስታወሻ</div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- Per-department breakdown -->
-<div class="page-card mb-4">
-  <div class="card-head">
-    <h6><i class="bi bi-building me-2"></i>የቢሮ/መምሪያ ደብዳቤ ብዛት</h6>
-  </div>
-  <div class="table-responsive">
-    <table class="edms-table">
-      <thead>
-        <tr>
-          <th>ቢሮ / መምሪያ</th>
-          <th style="width:90px;">ጠቅላላ</th>
-          <th style="width:90px;">በጥበቃ</th>
-          <th style="width:90px;">ተጠናቋል</th>
-          <th style="width:90px;">ጊዜ አልፏቸ</th>
-          <th>እድገት</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for dept in dept_stats %}
-        <tr class="dept-row">
-          <td class="fw-medium">{{ dept.department|default:"ያልተመደበ" }}</td>
-          <td><strong>{{ dept.total }}</strong></td>
-          <td><span class="eb eb-PENDING" style="font-size:.72rem;">{{ dept.pending }}</span></td>
-          <td><span class="eb eb-COMPLETED" style="font-size:.72rem;">{{ dept.completed }}</span></td>
-          <td>
-            {% if dept.overdue %}
-            <span class="eb eb-URGENT" style="font-size:.72rem;">{{ dept.overdue }}</span>
-            {% else %}<span class="text-muted">—</span>{% endif %}
-          </td>
-          <td>
-            <div class="progress" style="height:8px;min-width:80px;">
-              <div class="progress-bar" style="background:var(--brand);
-                width:{% if dept.total %}{% widthratio dept.completed dept.total 100 %}{% else %}0{% endif %}%;"></div>
-            </div>
-          </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="6" class="text-center text-muted py-4">ምንም ደብዳቤ አልተገኘም</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
+<!-- ── Dept breakdown + Overdue by dept ── -->
+<div class="row g-4 mb-4">
 
-<!-- Mayor office documents -->
-<div class="page-card">
-  <div class="card-head">
-    <h6><i class="bi bi-building-fill me-2"></i>ወደ ከንቲባ ጽፈት ቤት የተላኩ ደብዳቤዎች</h6>
-    <a href="{% url 'document_list' %}?department=ከንቲባ+ጽፈት+ቤት" class="btn btn-sm btn-outline-primary">ሁሉም</a>
+  <!-- Department table -->
+  <div class="col-md-7">
+    <div class="page-card">
+      <div class="card-head">
+        <h6><i class="bi bi-building me-2"></i>የቢሮ/መምሪያ ደብዳቤ ብዛት</h6>
+      </div>
+      <div class="table-responsive">
+        <table class="edms-table">
+          <thead>
+            <tr>
+              <th>ቢሮ / መምሪያ</th>
+              <th style="width:70px;">ጠቅላላ</th>
+              <th style="width:70px;">በጥበቃ</th>
+              <th style="width:70px;color:#dc2626;">ዘግይቷ</th>
+              <th style="width:100px;">አፈጻጸም</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for dept in dept_stats %}
+            {% if dept.total > 0 %}
+            <tr class="dept-row">
+              <td class="fw-medium" style="font-size:.85rem;">
+                {{ dept.department|default:"ያልተመደበ"|truncatechars:25 }}
+              </td>
+              <td class="text-center"><strong>{{ dept.total }}</strong></td>
+              <td class="text-center">
+                {% if dept.pending %}<span class="badge" style="background:#f59e0b;">{{ dept.pending }}</span>
+                {% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
+              <td class="text-center">
+                {% if dept.overdue %}<span class="badge bg-danger">{{ dept.overdue }}</span>
+                {% else %}<span class="text-success small">✓</span>{% endif %}
+              </td>
+              <td>
+                <div class="pct-bar">
+                  <div class="pct-fill" style="width:{% if dept.total %}{% widthratio dept.completed dept.total 100 %}{% else %}0{% endif %}%;"></div>
+                </div>
+              </td>
+            </tr>
+            {% endif %}
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-3">ምንም ደብዳቤ አልተገኘም</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
-  <div class="table-responsive">
-    <table class="edms-table">
-      <thead>
-        <tr><th>ቁጥር</th><th>ርዕስ</th><th>ሁኔታ</th><th>ቅድሚያ</th><th>ቀን</th></tr>
-      </thead>
-      <tbody>
-        {% for doc in mayor_docs %}
-        <tr>
-          <td><a href="{% url 'document_detail' doc.pk %}" class="text-decoration-none">
-            <code class="text-primary fw-bold">{{ doc.reference_number }}</code>
-          </a></td>
-          <td style="max-width:200px;" class="text-truncate">{{ doc.title }}</td>
-          <td><span class="eb eb-{{ doc.status }}">{{ doc.get_status_display }}</span></td>
-          <td><span class="eb eb-{{ doc.priority }}">{{ doc.get_priority_display }}</span></td>
-          <td class="text-muted small">{{ doc.created_at|date:"d/m/Y" }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="5" class="text-center text-muted py-3">ምንም ደብዳቤ አልተላከም</td></tr>
+
+  <!-- Overdue alerts -->
+  <div class="col-md-5">
+    <div class="page-card p-4 h-100">
+      <div class="sec-title">
+        <i class="bi bi-alarm-fill text-danger me-1"></i>ጊዜ ያለፋቸው — በቢሮ
+      </div>
+      {% if overdue_by_dept %}
+        {% for dept in overdue_by_dept %}
+        <div class="ov-item {% if dept.cnt >= 3 %}{% elif dept.cnt == 1 %}warn{% endif %}">
+          <div class="d-flex justify-content-between align-items-center">
+            <span style="font-size:.85rem;font-weight:500;">
+              {{ dept.department|default:"ያልተመደበ"|truncatechars:28 }}
+            </span>
+            <span class="badge bg-danger">{{ dept.cnt }}</span>
+          </div>
+        </div>
         {% endfor %}
-      </tbody>
-    </table>
+      {% else %}
+        <div class="ov-item ok text-center py-3">
+          <i class="bi bi-check-circle-fill text-success fs-4 d-block mb-1"></i>
+          <span style="font-size:.85rem;">ጊዜ ያለፋቸው ደብዳቤዎች የሉም ✅</span>
+        </div>
+      {% endif %}
+
+      <!-- Docs sent to Mayor office -->
+      {% if mayor_docs %}
+      <div class="sec-title mt-4">
+        <i class="bi bi-building-fill me-1"></i>ወደ ከንቲባ ጽ/ቤት የተላኩ
+      </div>
+      {% for doc in mayor_docs %}
+      <div class="d-flex gap-2 align-items-start mb-2 pb-2 border-bottom">
+        <span class="eb eb-{{ doc.status }}" style="font-size:.65rem;flex-shrink:0;">{{ doc.get_status_display }}</span>
+        <div style="min-width:0;">
+          <a href="{% url 'document_detail' doc.pk %}" class="text-decoration-none text-dark fw-medium" style="font-size:.82rem;">
+            {{ doc.title|truncatechars:35 }}
+          </a>
+          <div class="text-muted" style="font-size:.72rem;">{{ doc.created_at|date:"d/m/Y" }}</div>
+        </div>
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
   </div>
 </div>
 
@@ -187,15 +234,33 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script>
+// Progress ring
+const pct = {{ completion_pct }};
+const circ = 2 * Math.PI * 55;
+document.getElementById('progressRing').style.strokeDashoffset = circ * (1 - pct / 100);
+
+// Monthly chart
+const months_am = ['','ጃን','ፌብ','ማርች','ኤፕ','ሜይ','ጁን','ጁላይ','ኦገስ','ሴፕ','ኦክቶ','ኖቬ','ዲሴ'];
 new Chart(document.getElementById('monthlyChart'), {
   type: 'bar',
   data: {
     labels: {{ chart_labels|safe }},
-    datasets: [{ label: 'ደብዳቤዎች', data: {{ chart_data|safe }},
-      backgroundColor: 'rgba(27,79,114,.75)', borderRadius: 6 }]
+    datasets: [{
+      label: 'ደብዳቤ',
+      data: {{ chart_data|safe }},
+      backgroundColor: 'rgba(27,79,114,.75)',
+      borderRadius: 6,
+      borderSkipped: false,
+    }]
   },
-  options: { responsive:true, plugins:{legend:{display:false}},
-    scales:{ y:{beginAtZero:true, ticks:{precision:0}}, x:{grid:{display:false}} } }
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#f1f5f9' } },
+      x: { grid: { display: false } }
+    }
+  }
 });
 </script>
 {% endblock %}
