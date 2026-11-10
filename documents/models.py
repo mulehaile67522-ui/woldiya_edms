@@ -15,9 +15,19 @@ class UserProfile(models.Model):
         ('VICE_MAYOR',  'ምክትል ከንቲባ'),
         ('ADMIN',       'አስተዳዳሪ (IT)'),
         ('DEPT_HEAD',   'የቢሮ/መምሪያ ኃላፊ'),
-        ('REGISTRAR',   'ሰናዳ'),
-        ('SUBCITY',     'ክፍለ ከተማ'),
+        ('TEAM_LEAD',   'የቡድን መሪ / ተቆጣጣሪ'),
+        ('REGISTRAR',   'ጸሐፊ / ሰናዳ'),
+        ('EXPERT',      'ባለሙያ / ሠራተኛ'),
+        ('SUBCITY',     'ክፍለ ከተማ ኃላፊ'),
+        ('AUDITOR',     'ተቆጣጣሪ / Auditor'),
         ('VIEWER',      'ተመልካች'),
+    ]
+
+    ADMIN_LEVEL_CHOICES = [
+        ('CENTRAL',   'ማዕከላዊ — ከተማ አስተዳደር'),
+        ('SUBCITY_1', 'ታላቁ ራሳሊ ክፍለ ከተማ'),
+        ('SUBCITY_2', 'የጁ ክፍለ ከተማ'),
+        ('SUBCITY_3', 'ጣይቱ ክፍለ ከተማ'),
     ]
 
     ORG_LEVEL_CHOICES = [
@@ -35,7 +45,7 @@ class UserProfile(models.Model):
 
     user       = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     role       = models.CharField(max_length=15, choices=ROLE_CHOICES, default='VIEWER', verbose_name='ሚና')
-    org_level  = models.CharField(max_length=10, choices=ORG_LEVEL_CHOICES, default='DEPT', verbose_name='የድርጅት ደረጃ')
+    admin_level = models.CharField(max_length=15, choices=ADMIN_LEVEL_CHOICES, default='CENTRAL', verbose_name='የአስተዳደር ደረጃ')
     department = models.CharField(max_length=150, blank=True, verbose_name='ቢሮ / መምሪያ')
     subcity    = models.CharField(max_length=20, choices=SUBCITY_CHOICES, blank=True, verbose_name='ክፍለ ከተማ')
     phone      = models.CharField(max_length=20, blank=True, verbose_name='ስልክ ቁጥር')
@@ -52,13 +62,13 @@ class UserProfile(models.Model):
         return self.role in ('ADMIN', 'MAYOR', 'VICE_MAYOR')
 
     def is_registrar(self):
-        return self.role in ('ADMIN', 'MAYOR', 'VICE_MAYOR', 'DEPT_HEAD', 'REGISTRAR', 'SUBCITY')
+        return self.role in ('ADMIN', 'MAYOR', 'VICE_MAYOR', 'DEPT_HEAD', 'TEAM_LEAD', 'REGISTRAR', 'EXPERT', 'SUBCITY')
 
     def can_edit(self):
         return self.role in ('ADMIN', 'MAYOR', 'VICE_MAYOR', 'DEPT_HEAD')
 
     def can_approve(self):
-        return self.role in ('MAYOR', 'VICE_MAYOR', 'DEPT_HEAD')
+        return self.role in ('MAYOR', 'VICE_MAYOR', 'DEPT_HEAD', 'TEAM_LEAD')
 
     def sees_all(self):
         """City-level roles see ALL documents."""

@@ -33,12 +33,29 @@ def notifications(request):
         except Exception:
             user_role = 'VIEWER'
 
-    # Role levels
-    user_is_admin     = user_role in ('ADMIN', 'MAYOR', 'VICE_MAYOR')
-    user_is_registrar = user_role in ('ADMIN', 'MAYOR', 'VICE_MAYOR', 'DEPT_HEAD', 'REGISTRAR', 'SUBCITY')
-    user_can_edit     = user_role in ('ADMIN', 'MAYOR', 'VICE_MAYOR', 'DEPT_HEAD')
-    user_can_create   = user_role in ('ADMIN', 'MAYOR', 'VICE_MAYOR', 'DEPT_HEAD', 'REGISTRAR', 'SUBCITY')
-    user_sees_all     = user_role in ('ADMIN', 'MAYOR', 'VICE_MAYOR')
+    # ── Permission levels ──────────────────────────────────────────
+    # Admin levels (see all, manage system)
+    user_is_admin    = user_role in ('ADMIN', 'MAYOR', 'VICE_MAYOR')
+
+    # Can create/register documents
+    user_can_create  = user_role in ('ADMIN', 'MAYOR', 'VICE_MAYOR', 'DEPT_HEAD',
+                                      'TEAM_LEAD', 'REGISTRAR', 'EXPERT', 'SUBCITY')
+
+    # Can edit documents
+    user_can_edit    = user_role in ('ADMIN', 'MAYOR', 'VICE_MAYOR', 'DEPT_HEAD')
+
+    # Can approve documents
+    user_can_approve = user_role in ('MAYOR', 'VICE_MAYOR', 'DEPT_HEAD', 'TEAM_LEAD')
+
+    # Sees all documents (city-wide)
+    user_sees_all    = user_role in ('ADMIN', 'MAYOR', 'VICE_MAYOR')
+
+    # Auditor — read-only audit trail
+    user_is_auditor  = user_role == 'AUDITOR'
+
+    # Is registrar level
+    user_is_registrar = user_role in ('ADMIN', 'MAYOR', 'VICE_MAYOR', 'DEPT_HEAD',
+                                       'TEAM_LEAD', 'REGISTRAR', 'EXPERT', 'SUBCITY')
 
     return {
         'unread_notifications': unread_notifications,
@@ -50,5 +67,7 @@ def notifications(request):
         'user_is_registrar':    user_is_registrar,
         'user_can_edit':        user_can_edit,
         'user_can_create':      user_can_create,
+        'user_can_approve':     user_can_approve,
         'user_sees_all':        user_sees_all,
+        'user_is_auditor':      user_is_auditor,
     }

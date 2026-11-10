@@ -829,7 +829,8 @@ def _export_pdf_report(docs, by_type, by_status, by_priority, monthly, today):
     ]))
     story.append(t2)
 
-    doc.build(story)
+
+
     buf.seek(0)
     response = HttpResponse(buf.getvalue(), content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="edms_report_{today}.pdf"'
@@ -1052,22 +1053,22 @@ Woldiya City Administration — Innovation & Technology Group
 
 @login_required
 def create_user_view(request):
-    """ADMIN-only: create a new user with role and department."""
     from .decorators import _get_role
     if _get_role(request.user) != 'ADMIN':
         messages.error(request, 'ይህን ተግባር ለማከናወን የአስተዳዳሪ ፈቃድ ያስፈልጋል።')
         return redirect('dashboard')
 
     if request.method == 'POST':
-        username   = request.POST.get('username', '').strip()
-        password   = request.POST.get('password', '').strip()
-        password2  = request.POST.get('password2', '').strip()
-        first_name = request.POST.get('first_name', '').strip()
-        last_name  = request.POST.get('last_name', '').strip()
-        email      = request.POST.get('email', '').strip()
-        role       = request.POST.get('role', 'VIEWER')
-        department = request.POST.get('department', '').strip()
-        phone      = request.POST.get('phone', '').strip()
+        username    = request.POST.get('username', '').strip()
+        password    = request.POST.get('password', '').strip()
+        password2   = request.POST.get('password2', '').strip()
+        first_name  = request.POST.get('first_name', '').strip()
+        last_name   = request.POST.get('last_name', '').strip()
+        email       = request.POST.get('email', '').strip()
+        role        = request.POST.get('role', 'VIEWER')
+        department  = request.POST.get('department', '').strip()
+        phone       = request.POST.get('phone', '').strip()
+        admin_level = request.POST.get('admin_level', 'CENTRAL').strip()
 
         # Validation
         errors = []
@@ -1099,9 +1100,13 @@ def create_user_view(request):
             last_name=last_name,
         )
         profile, _ = UserProfile.objects.get_or_create(user=user)
-        profile.role       = role
-        profile.department = department
-        profile.phone      = phone
+        profile.role        = role
+        profile.department  = department
+        profile.phone       = phone
+        try:
+            profile.admin_level = admin_level
+        except Exception:
+            pass
         profile.save()
 
         # Send welcome email if user has email

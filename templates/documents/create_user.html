@@ -6,26 +6,23 @@
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-lg-7">
-
     <div class="page-card p-4">
       <h6 class="fw-bold mb-4" style="color:var(--brand);">
         <i class="bi bi-person-plus-fill me-2"></i>አዲስ ተጠቃሚ ምዝገባ
       </h6>
-
       <form method="post">
         {% csrf_token %}
 
         <!-- Account info -->
         <div class="mb-4 pb-4 border-bottom">
-          <div class="text-muted small fw-bold mb-3 text-uppercase" style="letter-spacing:.8px;">
+          <div class="text-muted small fw-bold mb-3 text-uppercase">
             <i class="bi bi-person me-1"></i> የመለያ መረጃ
           </div>
           <div class="row g-3">
             <div class="col-sm-6">
               <label class="form-label">Username <span class="text-danger">*</span></label>
               <input type="text" name="username" class="form-control"
-                     value="{{ post.username }}" placeholder="health_office" required>
-              <div class="text-muted" style="font-size:.75rem;">ፊደላት፣ ቁጥሮች እና _ ብቻ</div>
+                     value="{{ post.username }}" placeholder="edu_head" required>
             </div>
             <div class="col-sm-6">
               <label class="form-label">ኢሜይል</label>
@@ -47,19 +44,19 @@
 
         <!-- Personal info -->
         <div class="mb-4 pb-4 border-bottom">
-          <div class="text-muted small fw-bold mb-3 text-uppercase" style="letter-spacing:.8px;">
+          <div class="text-muted small fw-bold mb-3 text-uppercase">
             <i class="bi bi-person-badge me-1"></i> የሰው መረጃ
           </div>
           <div class="row g-3">
             <div class="col-sm-6">
               <label class="form-label">የመጀመሪያ ስም</label>
               <input type="text" name="first_name" class="form-control"
-                     value="{{ post.first_name }}" placeholder="ለምሳሌ: አበበ">
+                     value="{{ post.first_name }}" placeholder="አበበ">
             </div>
             <div class="col-sm-6">
               <label class="form-label">የአባት ስም</label>
               <input type="text" name="last_name" class="form-control"
-                     value="{{ post.last_name }}" placeholder="ለምሳሌ: ከበደ">
+                     value="{{ post.last_name }}" placeholder="ከበደ">
             </div>
             <div class="col-sm-6">
               <label class="form-label">ስልክ ቁጥር</label>
@@ -69,40 +66,46 @@
           </div>
         </div>
 
-        <!-- Role & Department -->
+        <!-- 3 Key Dropdowns: Level + Department + Role -->
         <div class="mb-4">
-          <div class="text-muted small fw-bold mb-3 text-uppercase" style="letter-spacing:.8px;">
-            <i class="bi bi-shield-check me-1"></i> ሚና እና ቢሮ
+          <div class="text-muted small fw-bold mb-3 text-uppercase">
+            <i class="bi bi-shield-check me-1"></i> ደረጃ፣ ቢሮ እና ሚና
           </div>
           <div class="row g-3">
-            <div class="col-sm-6">
-              <label class="form-label">ሚና <span class="text-danger">*</span></label>
-              <select name="role" class="form-select" required>
-                {% for val, label in role_choices %}
-                <option value="{{ val }}" {% if post.role == val %}selected{% endif %}>
-                  {{ label }}
+
+            <!-- 1. Administrative Level -->
+            <div class="col-12">
+              <label class="form-label fw-bold">
+                1️⃣ የአስተዳደር ደረጃ <span class="text-danger">*</span>
+              </label>
+              <select name="admin_level" class="form-select" required id="adminLevelSelect">
+                <option value="CENTRAL" {% if post.admin_level == 'CENTRAL' or not post.admin_level %}selected{% endif %}>
+                  🏛️ ማዕከላዊ — ከተማ አስተዳደር
                 </option>
-                {% endfor %}
+                <option value="SUBCITY_1" {% if post.admin_level == 'SUBCITY_1' %}selected{% endif %}>
+                  🏘️ ታላቁ ራሳሊ ክፍለ ከተማ
+                </option>
+                <option value="SUBCITY_2" {% if post.admin_level == 'SUBCITY_2' %}selected{% endif %}>
+                  🏘️ የጁ ክፍለ ከተማ
+                </option>
+                <option value="SUBCITY_3" {% if post.admin_level == 'SUBCITY_3' %}selected{% endif %}>
+                  🏘️ ጣይቱ ክፍለ ከተማ
+                </option>
               </select>
-              <div class="mt-2 p-2 rounded" style="background:#f8faff;font-size:.76rem;">
-            <div><span class="eb eb-URGENT" style="font-size:.68rem;">ከንቲባ</span> — Analytics + ከንቲባ ጽ/ቤት ደብዳቤ ብቻ</div>
-            <div class="mt-1"><span class="eb eb-URGENT" style="font-size:.68rem;">ምክትል ከንቲባ</span> — Analytics + ከንቲባ ጽ/ቤት ደብዳቤ ብቻ</div>
-            <div class="mt-1"><span class="eb eb-IN_PROGRESS" style="font-size:.68rem;">አስተዳዳሪ</span> — ቴክኒካዊ ድጋፍ ብቻ (IT)</div>
-            <div class="mt-1"><span class="eb eb-COMPLETED" style="font-size:.68rem;">ቢሮ ኃላፊ</span> — የቢሮ ደብዳቤ + approve</div>
-            <div class="mt-1"><span class="eb eb-IN_PROGRESS" style="font-size:.68rem;">ሰናዳ</span> — የቢሮ ደብዳቤ ምዝገባ</div>
-            <div class="mt-1"><span class="eb eb-INTERNAL" style="font-size:.68rem;">ክፍለ ከተማ</span> — የወረዳ ደብዳቤ ብቻ</div>
-            <div class="mt-1"><span class="eb eb-ARCHIVED" style="font-size:.68rem;">ተመልካች</span> — Assigned ደብዳቤ ብቻ</div>
-          </div>
             </div>
-            <div class="col-sm-6">
-              <label class="form-label">ቢሮ / መምሪያ</label>
-              <select name="department" class="form-select">
+
+            <!-- 2. Department -->
+            <div class="col-12">
+              <label class="form-label fw-bold">
+                2️⃣ ቢሮ / መምሪያ <span class="text-danger">*</span>
+              </label>
+              <select name="department" class="form-select" id="deptSelect">
                 <option value="">— ይምረጡ —</option>
-                <optgroup label="── ከተማ አስተዳደር ──">
+                <optgroup label="── ከተማ አስተዳደር ──" id="central-depts">
                   <option value="ከንቲባ ጽፈት ቤት">ከንቲባ ጽፈት ቤት</option>
                   <option value="ምክር ቤት ጽፈት ቤት">ምክር ቤት ጽፈት ቤት</option>
-                </optgroup>
-                <optgroup label="── መምሪያዎች ──">
+                  <option value="ፈጠራ እና ቴክኖሎጂ ቡድን">ፈጠራ እና ቴክኖሎጂ ቡድን</option>
+                  <option value="ዕቅድ ቅርጻ">ዕቅድ ቅርጻ</option>
                   <option value="ገቢዎች ጽፈት ቤት">ገቢዎች ጽፈት ቤት</option>
                   <option value="ገንዘብ መምሪያ">ገንዘብ መምሪያ</option>
                   <option value="ሴቶችና ህጻናት መምሪያ">ሴቶችና ህጻናት መምሪያ</option>
@@ -124,7 +127,6 @@
                   <option value="ፖሊስ መምሪያ">ፖሊስ መምሪያ</option>
                   <option value="ጸጥታ ተጠሪ ጽፈት ቤት">ጸጥታ ተጠሪ ጽፈት ቤት</option>
                   <option value="ሚኒሻ ተጠሪ ጽፈት ቤት">ሚኒሻ ተጠሪ ጽፈት ቤት</option>
-                  <option value="ፈጠራ እና ቴክኖሎጂ ቡድን">ፈጠራ እና ቴክኖሎጂ ቡድን</option>
                   <option value="ሌሎች">ሌሎች</option>
                 </optgroup>
                 <optgroup label="── ክፍለ ከተሞች ──">
@@ -134,10 +136,46 @@
                 </optgroup>
               </select>
             </div>
+
+            <!-- 3. Role -->
+            <div class="col-12">
+              <label class="form-label fw-bold">
+                3️⃣ ሚና (Role) <span class="text-danger">*</span>
+              </label>
+              <select name="role" class="form-select" required id="roleSelect">
+                <option value="">— ሚና ይምረጡ —</option>
+                <option value="MAYOR" {% if post.role == 'MAYOR' %}selected{% endif %}>ከንቲባ</option>
+                <option value="VICE_MAYOR" {% if post.role == 'VICE_MAYOR' %}selected{% endif %}>ምክትል ከንቲባ</option>
+                <option value="ADMIN" {% if post.role == 'ADMIN' %}selected{% endif %}>አስተዳዳሪ (IT)</option>
+                <option value="DEPT_HEAD" {% if post.role == 'DEPT_HEAD' %}selected{% endif %}>የቢሮ/መምሪያ ኃላፊ</option>
+                <option value="TEAM_LEAD" {% if post.role == 'TEAM_LEAD' %}selected{% endif %}>የቡድን መሪ / ተቆጣጣሪ</option>
+                <option value="REGISTRAR" {% if post.role == 'REGISTRAR' %}selected{% endif %}>ጸሐፊ / ሰናዳ</option>
+                <option value="EXPERT" {% if post.role == 'EXPERT' %}selected{% endif %}>ባለሙያ / ሠራተኛ</option>
+                <option value="SUBCITY" {% if post.role == 'SUBCITY' %}selected{% endif %}>ክፍለ ከተማ ኃላፊ</option>
+                <option value="AUDITOR" {% if post.role == 'AUDITOR' %}selected{% endif %}>ተቆጣጣሪ / Auditor</option>
+                <option value="VIEWER" {% if post.role == 'VIEWER' %}selected{% endif %}>ተመልካች</option>
+              </select>
+
+              <!-- Role description cards -->
+              <div class="mt-3 p-3 rounded" style="background:#f8faff;font-size:.78rem;" id="roleDesc">
+                <div class="row g-1">
+                  <div class="col-6"><span class="eb eb-URGENT" style="font-size:.65rem;">ከንቲባ/ምክትል</span> Analytics + ከንቲባ ጽ/ቤት</div>
+                  <div class="col-6"><span class="eb eb-IN_PROGRESS" style="font-size:.65rem;">አስተዳዳሪ</span> ቴክኒካዊ ድጋፍ (IT)</div>
+                  <div class="col-6"><span class="eb eb-COMPLETED" style="font-size:.65rem;">ቢሮ ኃላፊ</span> የቢሮ ደብዳቤ + approve</div>
+                  <div class="col-6"><span class="eb eb-INCOMING" style="font-size:.65rem;">ቡድን መሪ</span> ቡድን + forward</div>
+                  <div class="col-6"><span class="eb eb-IN_PROGRESS" style="font-size:.65rem;">ጸሐፊ/ሰናዳ</span> ደብዳቤ ምዝገባ</div>
+                  <div class="col-6"><span class="eb eb-OUTGOING" style="font-size:.65rem;">ባለሙያ</span> Draft + assigned</div>
+                  <div class="col-6"><span class="eb eb-INTERNAL" style="font-size:.65rem;">ክፍለ ከተማ</span> የወረዳ ደብዳቤ</div>
+                  <div class="col-6"><span class="eb eb-ARCHIVED" style="font-size:.65rem;">Auditor</span> Audit logs only</div>
+                  <div class="col-6"><span class="eb eb-ARCHIVED" style="font-size:.65rem;">ተመልካች</span> Assigned ብቻ</div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
 
-        <!-- Buttons -->
+        <!-- Submit -->
         <div class="d-flex gap-3">
           <button type="submit" class="btn btn-gold px-4 fw-bold">
             <i class="bi bi-person-plus me-2"></i>ተጠቃሚ ፍጠር
@@ -148,7 +186,6 @@
         </div>
       </form>
     </div>
-
   </div>
 </div>
 {% endblock %}
