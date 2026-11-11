@@ -23,6 +23,10 @@ def notifications(request):
 
     today_count = Document.objects.filter(created_at__date=today).count()
 
+    # Live sidebar counts
+    pending_count     = Document.objects.filter(status='PENDING').count()
+    in_progress_count = Document.objects.filter(status='IN_PROGRESS').count()
+
     # ── Role detection ─────────────────────────────────────────────
     user_role = 'VIEWER'
     if request.user.is_superuser or request.user.is_staff:
@@ -70,4 +74,6 @@ def notifications(request):
         'user_can_approve':     user_can_approve,
         'user_sees_all':        user_sees_all,
         'user_is_auditor':      user_is_auditor,
+        'pending_count':        pending_count,
+        'in_progress_count':    in_progress_count,
     }
