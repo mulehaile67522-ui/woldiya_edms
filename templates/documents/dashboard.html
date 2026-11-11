@@ -6,20 +6,34 @@
 
 {% block extra_css %}
 <style>
-  .g-incoming { background:linear-gradient(135deg,#1565c0,#42a5f5); }
-  .g-outgoing { background:linear-gradient(135deg,#6a1b9a,#ab47bc); }
-  .g-internal { background:linear-gradient(135deg,#00695c,#26a69a); }
-  .g-total    { background:linear-gradient(135deg,#1b4f72,#2980b9); }
-  .g-pending  { background:linear-gradient(135deg,#bf360c,#ff7043); }
-  .g-progress { background:linear-gradient(135deg,#1565c0,#64b5f6); }
-  .g-done     { background:linear-gradient(135deg,#1b5e20,#4caf50); }
-  .g-urgent   { background:linear-gradient(135deg,#b71c1c,#ef5350); }
-  .deadline-item { border-left:3px solid var(--brand-gold); padding:8px 12px; background:#fffbf0; border-radius:0 8px 8px 0; margin-bottom:8px; }
-  .deadline-item.critical { border-left-color:#dc2626; background:#fff5f5; }
-  .deadline-item.today    { border-left-color:#d97706; background:#fffbeb; }
-  .days-badge { font-size:.7rem; font-weight:700; padding:2px 8px; border-radius:20px; }
-  .progress-ring-wrap { position:relative; display:inline-flex; align-items:center; justify-content:center; }
-  .progress-ring-wrap span { position:absolute; font-size:1.1rem; font-weight:800; color:var(--brand); }
+  /* KPI Cards */
+  .kpi-card {
+    border-radius: 14px; padding: 20px 18px;
+    color: #fff; position: relative; overflow: hidden;
+    transition: transform .18s, box-shadow .18s;
+    cursor: default;
+  }
+  .kpi-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+  .kpi-card .num { font-size: 2.2rem; font-weight: 900; line-height: 1; }
+  .kpi-card .lbl { font-size: .82rem; opacity: .88; margin-top: 4px; }
+  .kpi-card .ico { position: absolute; right: 10px; bottom: 6px; font-size: 4rem; opacity: .10; }
+
+  /* Progress bar */
+  .prog-wrap { background: #e2e8f0; border-radius: 20px; height: 10px; overflow: hidden; }
+  .prog-fill  { height: 100%; border-radius: 20px; background: linear-gradient(90deg,#1b4f72,#2980b9); transition: width .6s ease; }
+
+  /* Deadline items */
+  .dl-item { border-left: 4px solid var(--brand-gold); border-radius: 0 10px 10px 0;
+             background: #fffbf0; padding: 10px 14px; margin-bottom: 8px; }
+  .dl-item.overdue { border-left-color: #dc2626; background: #fff5f5; }
+  .dl-item.today   { border-left-color: #d97706; background: #fffbeb; }
+
+  /* Recent table */
+  .rt td { padding: 11px 14px !important; font-size: .88rem !important; }
+
+  /* Section title */
+  .st { font-size: .75rem; font-weight: 700; letter-spacing: .9px;
+        text-transform: uppercase; color: #94a3b8; margin-bottom: 10px; }
 </style>
 {% endblock %}
 
@@ -28,11 +42,8 @@
 {% if overdue > 0 %}
 <div class="alert alert-danger d-flex gap-3 align-items-center mb-4 no-print">
   <i class="bi bi-alarm-fill fs-4 flex-shrink-0"></i>
-  <div><strong>ማስጠንቀቂያ!</strong>
-    <a href="{% url 'overdue_documents' %}" class="alert-link fw-bold">{{ overdue }} ደብዳቤ</a>
-    ጊዜው አልፏቸዋል — ወዲያውኑ እርምጃ ይውሰዱ።
-  </div>
-  <a href="{% url 'overdue_documents' %}" class="btn btn-sm btn-danger ms-auto no-print">ይመልከቱ <i class="bi bi-arrow-right ms-1"></i></a>
+  <div><strong>{{ overdue }} ደብዳቤ ጊዜ አልፏቸዋል!</strong> — ወዲያውኑ ክትትል ያስፈልጋቸዋል።</div>
+  <a href="{% url 'overdue_documents' %}" class="btn btn-sm btn-danger ms-auto no-print">ይመልከቱ</a>
 </div>
 {% endif %}
 
@@ -40,189 +51,193 @@
 <div class="page-card p-5 text-center mb-4">
   <div style="font-size:3rem;" class="mb-3">📋</div>
   <h5 class="fw-bold mb-2" style="color:var(--brand);">EDMS ወደ ስራ ይጀምሩ</h5>
-  <p class="text-muted mb-4 mx-auto" style="max-width:480px;">ምንም ደብዳቤ አልተመዘገበም። አዲስ ደብዳቤ ይመዝግቡ።</p>
-  <div class="d-flex gap-2 justify-content-center flex-wrap no-print">
-    {% if user_can_edit %}
-    <a href="{% url 'document_create' %}" class="btn btn-gold px-4"><i class="bi bi-plus-lg me-1"></i>አዲስ ደብዳቤ</a>
-    {% endif %}
-    <a href="{% url 'document_list' %}" class="btn btn-outline-secondary"><i class="bi bi-files me-1"></i>ደብዳቤዎች</a>
-  </div>
+  <p class="text-muted mb-4">ምንም ደብዳቤ አልተመዘገበም። አዲስ ደብዳቤ ይመዝግቡ።</p>
+  {% if user_can_create %}
+  <a href="{% url 'document_create' %}" class="btn btn-gold px-4">
+    <i class="bi bi-plus-lg me-1"></i>አዲስ ደብዳቤ
+  </a>
+  {% endif %}
 </div>
 {% endif %}
 
-<!-- ── Stat Cards Row 1 ── -->
-<div class="row g-4 mb-4">
+<!-- ── Row 1: 4 KPI cards ── -->
+<div class="row g-3 mb-4">
   <div class="col-6 col-md-3">
     <a href="{% url 'document_list' %}?doc_type=INCOMING" class="text-decoration-none">
-      <div class="stat-card g-incoming"><div class="s-val">{{ incoming }}</div><div class="s-lbl"><i class="bi bi-inbox-fill me-1"></i>ገቢ ደብዳቤ</div><div class="bg-icon"><i class="bi bi-inbox"></i></div></div>
+      <div class="kpi-card" style="background:linear-gradient(135deg,#1565c0,#42a5f5);">
+        <div class="num">{{ incoming }}</div>
+        <div class="lbl"><i class="bi bi-inbox-fill me-1"></i>ገቢ ደብዳቤ</div>
+        <div class="ico"><i class="bi bi-inbox"></i></div>
+      </div>
     </a>
   </div>
   <div class="col-6 col-md-3">
     <a href="{% url 'document_list' %}?doc_type=OUTGOING" class="text-decoration-none">
-      <div class="stat-card g-outgoing"><div class="s-val">{{ outgoing }}</div><div class="s-lbl"><i class="bi bi-send-fill me-1"></i>ወጪ ደብዳቤ</div><div class="bg-icon"><i class="bi bi-send"></i></div></div>
+      <div class="kpi-card" style="background:linear-gradient(135deg,#6a1b9a,#ab47bc);">
+        <div class="num">{{ outgoing }}</div>
+        <div class="lbl"><i class="bi bi-send-fill me-1"></i>ወጪ ደብዳቤ</div>
+        <div class="ico"><i class="bi bi-send"></i></div>
+      </div>
     </a>
   </div>
-  <div class="col-6 col-md-3">
-    <a href="{% url 'document_list' %}?doc_type=INTERNAL" class="text-decoration-none">
-      <div class="stat-card g-internal"><div class="s-val">{{ internal }}</div><div class="s-lbl"><i class="bi bi-journal-text me-1"></i>የውስጥ ማስታወሻ</div><div class="bg-icon"><i class="bi bi-journal"></i></div></div>
-    </a>
-  </div>
-  <div class="col-6 col-md-3">
-    <a href="{% url 'document_list' %}" class="text-decoration-none">
-      <div class="stat-card g-total"><div class="s-val">{{ total }}</div><div class="s-lbl"><i class="bi bi-files me-1"></i>ጠቅላላ ደብዳቤ</div><div class="bg-icon"><i class="bi bi-files"></i></div></div>
-    </a>
-  </div>
-</div>
-
-<!-- ── Stat Cards Row 2 ── -->
-<div class="row g-4 mb-5">
   <div class="col-6 col-md-3">
     <a href="{% url 'document_list' %}?status=PENDING" class="text-decoration-none">
-      <div class="stat-card g-pending"><div class="s-val">{{ pending }}</div><div class="s-lbl"><i class="bi bi-hourglass-split me-1"></i>በጥበቃ ላይ</div><div class="bg-icon"><i class="bi bi-hourglass"></i></div></div>
+      <div class="kpi-card" style="background:linear-gradient(135deg,#b45309,#f59e0b);">
+        <div class="num">{{ pending }}</div>
+        <div class="lbl"><i class="bi bi-hourglass-split me-1"></i>በጥበቃ ላይ</div>
+        <div class="ico"><i class="bi bi-hourglass"></i></div>
+      </div>
     </a>
   </div>
   <div class="col-6 col-md-3">
-    <a href="{% url 'document_list' %}?status=IN_PROGRESS" class="text-decoration-none">
-      <div class="stat-card g-progress"><div class="s-val">{{ in_progress }}</div><div class="s-lbl"><i class="bi bi-arrow-repeat me-1"></i>በሂደት ላይ</div><div class="bg-icon"><i class="bi bi-arrow-repeat"></i></div></div>
-    </a>
-  </div>
-  <div class="col-6 col-md-3">
-    <a href="{% url 'document_list' %}?status=COMPLETED" class="text-decoration-none">
-      <div class="stat-card g-done"><div class="s-val">{{ completed }}</div><div class="s-lbl"><i class="bi bi-check-circle-fill me-1"></i>ተጠናቋል</div><div class="bg-icon"><i class="bi bi-check-circle"></i></div></div>
-    </a>
-  </div>
-  <div class="col-6 col-md-3">
-    <a href="{% url 'document_list' %}?priority=URGENT" class="text-decoration-none">
-      <div class="stat-card g-urgent"><div class="s-val">{{ urgent }}</div><div class="s-lbl"><i class="bi bi-lightning-fill me-1"></i>አስቸኳይ</div><div class="bg-icon"><i class="bi bi-lightning"></i></div></div>
+    <a href="{% url 'overdue_documents' %}" class="text-decoration-none">
+      <div class="kpi-card" style="background:linear-gradient(135deg,{% if overdue > 0 %}#b91c1c,#f87171{% else %}#15803d,#4ade80{% endif %});">
+        <div class="num">{{ overdue }}</div>
+        <div class="lbl">
+          {% if overdue > 0 %}<i class="bi bi-alarm-fill me-1"></i>ጊዜ ያለፋቸው
+          {% else %}<i class="bi bi-check-circle me-1"></i>ሁሉም ወቅታዊ{% endif %}
+        </div>
+        <div class="ico"><i class="bi bi-alarm"></i></div>
+      </div>
     </a>
   </div>
 </div>
 
-<!-- ── Progress + Today/Week/My + Deadlines ── -->
+<!-- ── Row 2: Progress + Deadlines + Chart ── -->
 <div class="row g-4 mb-4">
 
-  <!-- Completion progress ring -->
+  <!-- Progress + mini stats -->
   <div class="col-md-4 col-lg-3">
-    <div class="page-card p-4 h-100 text-center">
-      <h6 class="fw-bold mb-3" style="color:var(--brand);">
-        <i class="bi bi-check2-circle me-2"></i>የጥናት ሂደት
-      </h6>
-      <div class="progress-ring-wrap mb-3">
-        <svg width="110" height="110" viewBox="0 0 110 110">
-          <circle cx="55" cy="55" r="46" fill="none" stroke="#e2e8f0" stroke-width="10"/>
-          <circle cx="55" cy="55" r="46" fill="none" stroke="#2e7d32" stroke-width="10"
-                  stroke-dasharray="289"
-                  stroke-dashoffset="{{ completion_pct|default:0|add:0 }}"
-                  id="progressRing"
-                  stroke-linecap="round"
-                  transform="rotate(-90 55 55)"/>
-        </svg>
-        <span id="progressPct">{{ completion_pct }}%</span>
+    <div class="page-card p-4 h-100">
+      <div class="st">የስራ አፈጻጸም</div>
+
+      <!-- Linear progress bar -->
+      <div class="mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="small text-muted">{{ completed }} / {{ total }} ተጠናቋል</span>
+          <span class="fw-bold" style="color:var(--brand);">{{ completion_pct }}%</span>
+        </div>
+        <div class="prog-wrap">
+          <div class="prog-fill" style="width:{{ completion_pct }}%;"></div>
+        </div>
       </div>
-      <div class="text-muted small">{{ completed }} / {{ total }} ተጠናቋል</div>
-      <div class="mt-3 d-flex gap-2 flex-column">
-        <div class="d-flex justify-content-between small px-1">
-          <span class="text-muted">ዛሬ</span><strong class="text-primary">{{ today_docs }}</strong>
+
+      <!-- Status pills -->
+      <div class="d-flex flex-column gap-2 mt-3">
+        <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background:#f8faff;">
+          <span class="small text-muted"><i class="bi bi-files me-1"></i>ጠቅላላ</span>
+          <strong style="color:var(--brand);">{{ total }}</strong>
         </div>
-        <div class="d-flex justify-content-between small px-1">
-          <span class="text-muted">ሳምንት</span><strong class="text-success">{{ week_docs }}</strong>
+        <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background:#f8faff;">
+          <span class="small text-muted"><i class="bi bi-arrow-repeat me-1"></i>በሂደት</span>
+          <strong class="text-primary">{{ in_progress }}</strong>
         </div>
-        <div class="d-flex justify-content-between small px-1">
-          <span class="text-muted">የኔ ተግባር</span><strong class="text-warning">{{ my_docs }}</strong>
+        <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background:#f8faff;">
+          <span class="small text-muted"><i class="bi bi-lightning me-1"></i>አስቸኳይ</span>
+          <strong class="text-danger">{{ urgent }}</strong>
+        </div>
+        <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background:#f8faff;">
+          <span class="small text-muted"><i class="bi bi-calendar-day me-1"></i>ዛሬ</span>
+          <strong class="text-success">{{ today_docs }}</strong>
+        </div>
+        <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background:#f8faff;">
+          <span class="small text-muted"><i class="bi bi-calendar-week me-1"></i>ሳምንት</span>
+          <strong>{{ week_docs }}</strong>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Upcoming deadlines -->
-  <div class="col-md-8 col-lg-5">
+  <!-- Deadlines panel -->
+  <div class="col-md-4 col-lg-3">
     <div class="page-card p-4 h-100">
-      <h6 class="fw-bold mb-3" style="color:var(--brand);">
-        <i class="bi bi-calendar-event me-2"></i>የሚቀርቡ የቀን ገደቦች
-        <span class="badge bg-warning text-dark ms-2" style="font-size:.65rem;">{{ deadline_soon|length }}</span>
-      </h6>
+      <div class="st">
+        <i class="bi bi-calendar-event me-1"></i>
+        የሚቀርቡ ቀናት
+        {% if deadline_soon %}<span class="badge bg-warning text-dark ms-1">{{ deadline_soon|length }}</span>{% endif %}
+      </div>
       {% for doc in deadline_soon %}
-        {% with days=doc.due_date|timeuntil %}
-        <div class="deadline-item {% if doc.due_date == today %}today{% elif doc.due_date < today %}critical{% endif %}">
-          <div class="d-flex justify-content-between align-items-start gap-2">
-            <div style="min-width:0;">
-              <a href="{% url 'document_detail' doc.pk %}" class="text-decoration-none fw-semibold text-dark" style="font-size:.86rem;">
-                {{ doc.title|truncatechars:40 }}
-              </a>
-              <div class="text-muted" style="font-size:.75rem;">{{ doc.reference_number }}</div>
-            </div>
-            <div class="flex-shrink-0 text-end">
-              <div class="days-badge {% if doc.due_date == today %}bg-warning text-dark{% elif doc.due_date < today %}bg-danger text-white{% else %}bg-info text-white{% endif %}">
-                {{ doc.due_date }}
-              </div>
-              <div class="text-muted mt-1" style="font-size:.7rem;">{{ doc.get_status_display }}</div>
-            </div>
-          </div>
+      <div class="dl-item {% if doc.due_date == today %}today{% endif %}">
+        <a href="{% url 'document_detail' doc.pk %}" class="text-decoration-none">
+          <div class="fw-medium text-dark" style="font-size:.82rem;">{{ doc.title|truncatechars:30 }}</div>
+        </a>
+        <div class="d-flex justify-content-between mt-1">
+          <code class="text-primary" style="font-size:.72rem;">{{ doc.reference_number }}</code>
+          <span class="badge {% if doc.due_date == today %}bg-warning text-dark{% else %}bg-info{% endif %}" style="font-size:.62rem;">
+            {{ doc.due_date }}
+          </span>
         </div>
-        {% endwith %}
+      </div>
       {% empty %}
-        <div class="text-center text-muted py-4">
-          <i class="bi bi-calendar-check fs-2 d-block mb-2 opacity-25"></i>
-          በ7 ቀናት ውስጥ የሚደርስ ቀን የለም
-        </div>
+      <div class="text-center text-muted py-4">
+        <i class="bi bi-calendar-check fs-3 d-block mb-2 opacity-25"></i>
+        <small>ቀረቢ ቀን የለም</small>
+      </div>
       {% endfor %}
       {% if overdue > 0 %}
-      <a href="{% url 'overdue_documents' %}" class="btn btn-sm btn-outline-danger w-100 mt-2">
-        <i class="bi bi-alarm me-1"></i>{{ overdue }} ጊዜ ያለፋቸው ይመልከቱ
+      <a href="{% url 'overdue_documents' %}" class="btn btn-sm btn-outline-danger w-100 mt-2 no-print">
+        <i class="bi bi-alarm me-1"></i>{{ overdue }} ዘግይቷ
       </a>
       {% endif %}
     </div>
   </div>
 
-  <!-- Charts: type + status -->
-  <div class="col-lg-4">
-    <div class="page-card p-4 mb-3">
-      <h6 class="fw-bold mb-2" style="color:var(--brand);font-size:.85rem;">
-        <i class="bi bi-pie-chart-fill me-2"></i>በዓይነት
-      </h6>
-      <canvas id="typeChart" height="150"></canvas>
-    </div>
-    <div class="page-card p-4">
-      <h6 class="fw-bold mb-2" style="color:var(--brand);font-size:.85rem;">
-        <i class="bi bi-activity me-2"></i>በሁኔታ
-      </h6>
-      <canvas id="statusChart" height="150"></canvas>
+  <!-- Monthly chart -->
+  <div class="col-md-4 col-lg-6">
+    <div class="page-card p-4 h-100">
+      <div class="st"><i class="bi bi-bar-chart me-1"></i>ወርሃዊ ምዝገባ — ባለፉት 6 ወራት</div>
+      <canvas id="monthlyChart" height="140"></canvas>
+      <!-- Doc type row -->
+      <div class="row g-2 mt-2 text-center">
+        <div class="col-4">
+          <div class="fw-bold" style="font-size:1.2rem;color:#1565c0;">{{ incoming }}</div>
+          <div class="text-muted" style="font-size:.72rem;">ገቢ</div>
+        </div>
+        <div class="col-4">
+          <div class="fw-bold" style="font-size:1.2rem;color:#6a1b9a;">{{ outgoing }}</div>
+          <div class="text-muted" style="font-size:.72rem;">ወጪ</div>
+        </div>
+        <div class="col-4">
+          <div class="fw-bold" style="font-size:1.2rem;color:#00695c;">{{ internal }}</div>
+          <div class="text-muted" style="font-size:.72rem;">ማስታወሻ</div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- ── Monthly bar chart ── -->
-<div class="page-card p-4 mb-4">
-  <h6 class="fw-bold mb-3" style="color:var(--brand);">
-    <i class="bi bi-bar-chart-fill me-2"></i>ወርሃዊ ምዝገባ — ባለፉት 6 ወራት
-  </h6>
-  <canvas id="monthlyChart" height="80"></canvas>
-</div>
-
-<!-- ── Recent Documents ── -->
+<!-- ── Row 3: Recent documents ── -->
 <div class="page-card">
   <div class="card-head">
     <h6><i class="bi bi-clock-history me-2"></i>የቅርብ ጊዜ ደብዳቤዎች</h6>
-    <a href="{% url 'document_list' %}" class="btn btn-sm btn-outline-primary">ሁሉም <i class="bi bi-arrow-right ms-1"></i></a>
+    <a href="{% url 'document_list' %}" class="btn btn-sm btn-outline-primary no-print">
+      ሁሉም <i class="bi bi-arrow-right ms-1"></i>
+    </a>
   </div>
   <div class="table-responsive">
-    <table class="edms-table">
+    <table class="edms-table rt">
       <thead>
-        <tr><th>ቁጥር</th><th>ርዕስ</th><th>ዓይነት</th><th>ሁኔታ</th><th>ቅድሚያ</th><th>ቀን</th><th></th></tr>
+        <tr><th>ቁጥር</th><th>ርዕስ</th><th>ዓይነት</th><th>ሁኔታ</th><th>ቅድሚያ</th><th>ቀን</th><th class="no-print"></th></tr>
       </thead>
       <tbody>
         {% for doc in recent_docs %}
         <tr>
-          <td><code class="text-primary fw-semibold">{{ doc.reference_number }}</code></td>
-          <td style="max-width:190px;" class="text-truncate" title="{{ doc.title }}">{{ doc.title }}</td>
+          <td><a href="{% url 'document_detail' doc.pk %}" class="text-decoration-none">
+            <code class="text-primary fw-bold" style="font-size:.8rem;">{{ doc.reference_number }}</code>
+          </a></td>
+          <td style="max-width:180px;" class="text-truncate fw-medium">{{ doc.title }}</td>
           <td><span class="eb eb-{{ doc.doc_type }}">{{ doc.get_doc_type_display }}</span></td>
           <td><span class="eb eb-{{ doc.status }}">{{ doc.get_status_display }}</span></td>
           <td><span class="eb eb-{{ doc.priority }}">{{ doc.get_priority_display }}</span></td>
-          <td class="text-muted" style="font-size:.78rem;">{{ doc.created_at|date:"d/m/Y" }}</td>
-          <td><a href="{% url 'document_detail' doc.pk %}" class="btn btn-sm btn-outline-primary py-0 px-2"><i class="bi bi-eye"></i></a></td>
+          <td class="text-muted" style="font-size:.8rem;white-space:nowrap;">{{ doc.created_at|date:"d/m/Y" }}</td>
+          <td class="no-print">
+            <a href="{% url 'document_detail' doc.pk %}" class="btn btn-sm btn-outline-primary py-0 px-2">
+              <i class="bi bi-eye"></i>
+            </a>
+          </td>
         </tr>
         {% empty %}
-        <tr><td colspan="7" class="text-center text-muted py-4">ምንም ደብዳቤ አልተመዘገበም</td></tr>
+        <tr><td colspan="7" class="text-center text-muted py-4">ምንም ደብዳቤ አልተገኘም</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -234,44 +249,26 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script>
-// Progress ring
-const pct = {{ completion_pct }};
-const circ = 2 * Math.PI * 46;
-document.getElementById('progressRing').style.strokeDashoffset = circ * (1 - pct / 100);
-
-// Monthly bar chart
 new Chart(document.getElementById('monthlyChart'), {
   type: 'bar',
   data: {
     labels: {{ chart_labels|safe }},
-    datasets: [{ label: 'ደብዳቤዎች', data: {{ chart_data|safe }},
-      backgroundColor: 'rgba(27,79,114,.75)', borderColor:'#1b4f72',
-      borderWidth:1, borderRadius:6 }]
+    datasets: [{
+      label: 'ደብዳቤ',
+      data: {{ chart_data|safe }},
+      backgroundColor: 'rgba(27,79,114,.72)',
+      borderRadius: 6,
+      borderSkipped: false,
+    }]
   },
-  options: { responsive:true, plugins:{legend:{display:false}},
-    scales:{ y:{beginAtZero:true,ticks:{precision:0}}, x:{grid:{display:false}} } }
-});
-
-// Type doughnut
-new Chart(document.getElementById('typeChart'), {
-  type: 'doughnut',
-  data: { labels: {{ type_labels|safe }},
-    datasets:[{ data: {{ type_values|safe }},
-      backgroundColor:['#1565c0','#6a1b9a','#00695c'],
-      borderWidth:3, borderColor:'#fff' }] },
-  options:{ responsive:true, cutout:'65%',
-    plugins:{ legend:{ position:'bottom', labels:{ padding:10, font:{size:11} } } } }
-});
-
-// Status doughnut
-new Chart(document.getElementById('statusChart'), {
-  type: 'doughnut',
-  data: { labels: {{ status_labels|safe }},
-    datasets:[{ data: {{ status_values|safe }},
-      backgroundColor:['#e65100','#1976d2','#2e7d32','#546e7a'],
-      borderWidth:3, borderColor:'#fff' }] },
-  options:{ responsive:true, cutout:'65%',
-    plugins:{ legend:{ position:'bottom', labels:{ padding:8, font:{size:10} } } } }
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#f1f5f9' } },
+      x: { grid: { display: false } }
+    }
+  }
 });
 </script>
 {% endblock %}
